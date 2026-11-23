@@ -1,11 +1,6 @@
-import { For } from "solid-js";
+import aboutMarkdown from "../content/about.md?raw";
 import { GitHubIcon, LinkedInIcon, MailIcon } from "./Icons";
-
-const ABOUT_PARAGRAPHS = [
-  "Lorem ipsum dolor sit amet consectetur adipisicing elit. Pariatur possimus aliquip ut distinctio ducimus dolor illum deserunt deleniti.",
-  "Laborum ipsum nihil animi vero quis id sed maxime et exercitation irure deserunt pariatur ullamco est assumenda atque veniam.",
-  "Consequatur laboris nulla cumque est cillum similique mollit in quis tempor id illum dolor consequat in incididunt enim.",
-];
+import { Markdown } from "./Markdown";
 
 export function AboutSection() {
   return (
@@ -71,11 +66,10 @@ export function AboutSection() {
       </div>
 
       {/* Body copy */}
-      <div class="space-y-4 font-sans text-[15px] leading-[1.75] text-[var(--fg-body)] sm:text-[15.5px]">
-        <For each={ABOUT_PARAGRAPHS}>
-          {(paragraph) => <p class="text-pretty">{paragraph}</p>}
-        </For>
-      </div>
+      <Markdown
+        content={aboutMarkdown}
+        class="space-y-4 font-sans text-[15px] leading-[1.75] text-[var(--fg-body)] sm:text-[15.5px]"
+      />
     </section>
   );
 }
