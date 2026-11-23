@@ -25,6 +25,7 @@ type statsAPI struct {
 	tokenHash    [sha256.Size]byte
 	origins      map[string]bool
 	publishMutex sync.Mutex
+	github       *githubStats
 }
 
 func main() {
@@ -59,11 +60,21 @@ func main() {
 		}
 	}
 
+	githubUser, githubToken := env("GITHUB_USERNAME"), env("GITHUB_TOKEN")
+	if githubUser != "" || githubToken != "" {
+		if githubUsername.MatchString(githubUser) && githubToken != "" {
+			api.github = &githubStats{username: githubUser, token: githubToken}
+		} else {
+			log.Print("GitHub stats require a valid GITHUB_USERNAME and GITHUB_TOKEN")
+		}
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("GET "+stats.Path, api.get)
+	mux.HandleFunc("GET "+githubStatsPath, api.getGitHub)
 	mux.HandleFunc("PUT "+stats.Path, api.publish)
 	server := &http.Server{
 		Addr: addr, Handler: mux, ReadTimeout: 10 * time.Second,
@@ -73,12 +84,16 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-func (api *statsAPI) get(w http.ResponseWriter, r *http.Request) {
+func (api *statsAPI) setReadHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Vary", "Origin")
 	if origin := r.Header.Get("Origin"); api.origins[origin] {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 	}
 	w.Header().Set("Cache-Control", "no-store")
+}
+
+func (api *statsAPI) get(w http.ResponseWriter, r *http.Request) {
+	api.setReadHeaders(w, r)
 	data, err := os.ReadFile(api.dataFile)
 	if errors.Is(err, os.ErrNotExist) {
 		http.Error(w, "No stats have been published yet", http.StatusNotFound)

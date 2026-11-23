@@ -21,13 +21,14 @@ export interface DailyCommitPoint {
 }
 
 export interface GitHubStats {
+  asOf: string;
   dailyCommits: DailyCommitPoint[];
-  latestProject: {
+  latestCommit: {
     repo: string;
     message: string;
-    when: string;
+    date: string;
     url: string;
-  };
+  } | null;
 }
 
 export interface DailyTokenPoint {
@@ -44,7 +45,7 @@ export interface AgenticCodingStats {
   sessions: number;
 }
 
-// Placeholder stats for the Strava and GitHub cards.
+// Placeholder stats for the Strava card.
 export const MOCK_STRAVA: StravaStats = {
   weeklyKm: [
     { label: "W-6", km: 18.4 },
@@ -65,32 +66,19 @@ export const MOCK_STRAVA: StravaStats = {
   },
 };
 
-export const MOCK_GITHUB: GitHubStats = {
-  dailyCommits: [
-    { day: "Tue", commits: 4 },
-    { day: "Wed", commits: 9 },
-    { day: "Thu", commits: 3 },
-    { day: "Fri", commits: 12 },
-    { day: "Sat", commits: 7 },
-    { day: "Sun", commits: 5 },
-    { day: "Mon", commits: 8 },
-  ],
-  latestProject: {
-    repo: "Tchanwangsa/portfolio-v3",
-    message: "feat: add footer and stats section",
-    when: "today",
-    url: "https://github.com/Tchanwangsa/portfolio-v3",
-  },
-};
-
 const agenticStatsEndpoint = import.meta.env.VITE_AGENTIC_STATS_API_URL ||
   (import.meta.env.DEV
     ? "http://127.0.0.1:8787/api/agentic-stats"
     : "https://api.tchawangsa.xyz/api/agentic-stats");
 
-async function fetchAgenticStats(url: string): Promise<AgenticCodingStats | null> {
+const githubStatsEndpoint = import.meta.env.VITE_GITHUB_STATS_API_URL ||
+  (import.meta.env.DEV
+    ? "http://127.0.0.1:8787/api/github-stats"
+    : "https://api.tchawangsa.xyz/api/github-stats");
+
+async function fetchStats<T>(url: string, timeout = 4000): Promise<T | null> {
   try {
-    const response = await fetch(url, { cache: "no-cache", signal: AbortSignal.timeout(4000) });
+    const response = await fetch(url, { cache: "no-cache", signal: AbortSignal.timeout(timeout) });
     return response.ok ? await response.json() : null;
   } catch {
     return null;
@@ -98,10 +86,14 @@ async function fetchAgenticStats(url: string): Promise<AgenticCodingStats | null
 }
 
 export async function loadAgenticCodingStats(): Promise<AgenticCodingStats | null> {
-  const stats = await fetchAgenticStats(agenticStatsEndpoint);
+  const stats = await fetchStats<AgenticCodingStats>(agenticStatsEndpoint);
   if (stats || !import.meta.env.DEV) return stats;
 
-  return fetchAgenticStats(`${import.meta.env.BASE_URL}agentic-stats.json`);
+  return fetchStats<AgenticCodingStats>(`${import.meta.env.BASE_URL}agentic-stats.json`);
+}
+
+export function loadGitHubStats(): Promise<GitHubStats | null> {
+  return fetchStats<GitHubStats>(githubStatsEndpoint, 8000);
 }
 
 export function formatModelName(model: string): string {

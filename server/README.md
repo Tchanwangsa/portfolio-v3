@@ -21,3 +21,23 @@ Run the server continuously and run the collector once to seed the API. The dev 
 3. Build the portfolio for `tchawangsa.xyz`. It defaults to the API URL above. To override the URL, set `VITE_AGENTIC_STATS_API_URL` at build time. Allow the portfolio's exact origin in `STATS_ALLOWED_ORIGINS` on the API.
 
 The API accepts a snapshot only when `PUT /api/agentic-stats` includes the publish token as a Bearer credential. `GET /api/agentic-stats` is public and returns the daily counts, total, top model and its token count, session count, and snapshot date. Keep the publish token in server and collector settings.
+
+## GitHub stats
+
+Set `GITHUB_USERNAME` to your GitHub login and `GITHUB_TOKEN` to a
+fine-grained personal access token with **Public repositories** selected and no
+added permissions. Use `server/.env.dev` locally. In production, set both values
+on the Go service using its environment or secret settings. The token belongs on
+the Go server. Vite only needs the API URL.
+
+The card reads `GET /api/github-stats`. Locally it defaults to
+`http://127.0.0.1:8787/api/github-stats`. In production it defaults to
+`https://api.tchawangsa.xyz/api/github-stats`. Set `VITE_GITHUB_STATS_API_URL`
+at build time to use a different endpoint. Add the portfolio's exact origin to
+`STATS_ALLOWED_ORIGINS` when hosting the API separately.
+
+The endpoint exposes seven days of public default-branch commits grouped by UTC
+author date and a link to the latest public commit GitHub Search finds. The
+server caches a successful response for 30 minutes and reuses it if GitHub
+temporarily fails. When credentials are absent or the first fetch fails the
+card shows an unavailable status.

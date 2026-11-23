@@ -7,12 +7,13 @@ import {
   StravaIcon,
 } from "./Icons";
 import {
-  MOCK_GITHUB,
   MOCK_STRAVA,
   formatModelName,
   formatTokens,
   loadAgenticCodingStats,
+  loadGitHubStats,
 } from "../data/stats";
+import { formatShortDate } from "../lib/date";
 
 function StravaCard() {
   const [activeIdx, setActiveIdx] = createSignal<number | null>(null);
@@ -209,17 +210,14 @@ function StravaCard() {
 
 function GitHubCard() {
   const [activeIdx, setActiveIdx] = createSignal<number | null>(null);
-  const days = MOCK_GITHUB.dailyCommits;
-  const totalCommits = days.reduce((sum, d) => sum + d.commits, 0);
-  const maxCommits = Math.max(...days.map((d) => d.commits), 1);
+  const [stats] = createResource(loadGitHubStats);
 
   const headline = () => {
+    const days = stats()?.dailyCommits;
+    if (!days) return null;
     const idx = activeIdx();
-    if (idx !== null) {
-      const count = days[idx].commits;
-      return `${count} ${count === 1 ? "commit" : "commits"}`;
-    }
-    return `${totalCommits} commits`;
+    const count = idx === null ? days.reduce((sum, day) => sum + day.commits, 0) : days[idx].commits;
+    return `${count} ${count === 1 ? "commit" : "commits"}`;
   };
 
   return (
@@ -235,90 +233,110 @@ function GitHubCard() {
         </div>
       </div>
 
-      {/* 7-day commit bar chart */}
-      <div
-        class="flex flex-1 flex-col justify-end"
-        onMouseLeave={() => setActiveIdx(null)}
-        role="img"
-        aria-label="GitHub commits over the last 7 days"
+      <Show
+        when={stats()}
+        keyed
+        fallback={
+          <p class="text-sm text-[var(--fg-muted)]" role="status">
+            {stats.loading ? "Loading GitHub stats…" : "GitHub stats are unavailable."}
+          </p>
+        }
       >
-        <div class="flex h-[84px] items-end gap-2 border-b border-[var(--border)] px-0.5 pb-1.5">
-          <For each={days}>
-            {(d, i) => {
-              const pct = Math.max((d.commits / maxCommits) * 100, 10);
-              const isActive = () => activeIdx() === i();
-              const isDimmed = () =>
-                activeIdx() !== null && activeIdx() !== i();
-              return (
-                <button
-                  type="button"
-                  onMouseEnter={() => setActiveIdx(i())}
-                  onFocus={() => setActiveIdx(i())}
-                  onBlur={() => setActiveIdx(null)}
-                  class="flex h-full flex-1 cursor-pointer items-end focus:outline-none"
-                  aria-label={`${d.day}: ${d.commits} commits`}
-                >
-                  <span
-                    class="block w-full rounded-t-[4px] bg-[var(--fg)] transition-all duration-150"
-                    style={{
-                      height: `${pct}%`,
-                      opacity: isActive()
-                        ? "1"
-                        : isDimmed()
-                        ? "0.22"
-                        : i() === days.length - 1
-                        ? "0.85"
-                        : "0.42",
-                    }}
-                  />
-                </button>
-              );
-            }}
-          </For>
-        </div>
-
-        <div class="mt-1.5 flex items-center justify-between px-0.5 text-[11px] text-[var(--fg-muted)]">
-          <For each={days}>
-            {(d, i) => (
-              <span
-                class={`flex-1 text-center transition-colors duration-150 ${
-                  activeIdx() === i() ? "text-[var(--fg)]" : ""
-                }`}
+        {(snapshot) => {
+          const days = snapshot.dailyCommits;
+          const maxCommits = Math.max(...days.map((day) => day.commits), 1);
+          return (
+            <>
+              <div
+                class="flex flex-1 flex-col justify-end"
+                onMouseLeave={() => setActiveIdx(null)}
+                role="group"
+                aria-label={`Public GitHub commits for the seven days through ${snapshot.asOf} UTC`}
               >
-                {d.day.slice(0, 1)}
-              </span>
-            )}
-          </For>
-        </div>
-      </div>
+                <div class="flex h-[84px] items-end gap-2 border-b border-[var(--border)] px-0.5 pb-1.5">
+                  <For each={days}>
+                    {(day, i) => {
+                      const pct = day.commits === 0 ? 0 : Math.max((day.commits / maxCommits) * 100, 10);
+                      const isActive = () => activeIdx() === i();
+                      const isDimmed = () => activeIdx() !== null && !isActive();
+                      return (
+                        <button
+                          type="button"
+                          onMouseEnter={() => setActiveIdx(i())}
+                          onFocus={() => setActiveIdx(i())}
+                          onBlur={() => setActiveIdx(null)}
+                          class="flex h-full flex-1 cursor-pointer items-end focus:outline-none"
+                          aria-label={`${day.day}: ${day.commits} ${day.commits === 1 ? "commit" : "commits"}`}
+                        >
+                          <span
+                            class="block w-full rounded-t-[4px] bg-[var(--fg)] transition-all duration-150"
+                            style={{
+                              height: `${pct}%`,
+                              opacity: isActive()
+                                ? "1"
+                                : isDimmed()
+                                ? "0.22"
+                                : i() === days.length - 1
+                                ? "0.85"
+                                : "0.42",
+                            }}
+                          />
+                        </button>
+                      );
+                    }}
+                  </For>
+                </div>
 
-      {/* Latest commit */}
-      <div class="mt-4 border-t border-[var(--border)] pt-2.5">
-        <a
-          href={MOCK_GITHUB.latestProject.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="group -mx-2 block rounded-lg px-2 py-1.5 transition-colors duration-150 hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] focus-visible:outline-none"
-        >
-          <div class="flex items-center justify-between gap-2 text-xs text-[var(--fg-muted)]">
-            <span>Latest commit</span>
-            <span>{MOCK_GITHUB.latestProject.when}</span>
-          </div>
-          <div
-            class="mt-1 flex items-center gap-1 text-[13.5px] font-medium text-[var(--fg)]"
-            title={MOCK_GITHUB.latestProject.repo}
-          >
-            <span class="truncate">{MOCK_GITHUB.latestProject.repo}</span>
-            <ArrowUpRightIcon class="h-3 w-3 shrink-0 text-[var(--fg-muted)] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--fg)]" />
-          </div>
-          <div
-            class="mt-0.5 truncate text-xs text-[var(--fg-muted)]"
-            title={MOCK_GITHUB.latestProject.message}
-          >
-            {MOCK_GITHUB.latestProject.message}
-          </div>
-        </a>
-      </div>
+                <div class="mt-1.5 flex items-center justify-between px-0.5 text-[11px] text-[var(--fg-muted)]">
+                  <For each={days}>
+                    {(day, i) => (
+                      <span
+                        class={`flex-1 text-center transition-colors duration-150 ${
+                          activeIdx() === i() ? "text-[var(--fg)]" : ""
+                        }`}
+                      >
+                        {day.day.slice(0, 1)}
+                      </span>
+                    )}
+                  </For>
+                </div>
+              </div>
+
+              <div class="mt-4 border-t border-[var(--border)] pt-2.5">
+                <Show
+                  when={snapshot.latestCommit}
+                  keyed
+                  fallback={<p class="text-xs text-[var(--fg-muted)]">No public commits found.</p>}
+                >
+                  {(commit) => (
+                    <a
+                      href={commit.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="group -mx-2 block rounded-lg px-2 py-1.5 transition-colors duration-150 hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] focus-visible:outline-none"
+                    >
+                      <div class="flex items-center justify-between gap-2 text-xs text-[var(--fg-muted)]">
+                        <span>Latest public commit</span>
+                        <time dateTime={commit.date}>{formatShortDate(commit.date)}</time>
+                      </div>
+                      <div
+                        class="mt-1 flex items-center gap-1 text-[13.5px] font-medium text-[var(--fg)]"
+                        title={commit.repo}
+                      >
+                        <span class="truncate">{commit.repo}</span>
+                        <ArrowUpRightIcon class="h-3 w-3 shrink-0 text-[var(--fg-muted)] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--fg)]" />
+                      </div>
+                      <div class="mt-0.5 truncate text-xs text-[var(--fg-muted)]" title={commit.message}>
+                        {commit.message}
+                      </div>
+                    </a>
+                  )}
+                </Show>
+              </div>
+            </>
+          );
+        }}
+      </Show>
     </article>
   );
 }
