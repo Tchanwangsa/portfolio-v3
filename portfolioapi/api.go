@@ -45,7 +45,9 @@ func New(env func(string) string) (http.Handler, error) {
 	githubUser, githubToken := env("GITHUB_USERNAME"), env("GITHUB_TOKEN")
 	if githubUser != "" || githubToken != "" {
 		if githubUsername.MatchString(githubUser) && githubToken != "" {
-			api.github = &githubStats{username: githubUser, token: githubToken}
+			api.github = &githubStats{
+				username: githubUser, token: githubToken, privateToken: env("GITHUB_PRIVATE_TOKEN"),
+			}
 		} else {
 			log.Print("GitHub stats require a valid GITHUB_USERNAME and GITHUB_TOKEN")
 		}
