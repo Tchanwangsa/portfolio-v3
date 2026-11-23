@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Source Serif Pro", "Source Serif 4", Georgia, Cambria, "Times New Roman", serif;
+  --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --color-ink: rgb(23, 23, 23);
+}
+
+:root {
+  --bg: #ffffff;
+  --fg: rgb(23, 23, 23);
+  --fg-body: rgba(23, 23, 23, 0.78);
+  --fg-muted: rgb(115, 115, 115);
+  --surface: rgb(245, 245, 245);
+  --surface-hover: rgba(23, 23, 23, 0.06);
+  --border: rgba(23, 23, 23, 0.08);
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: rgb(23, 23, 23);
+    --fg: rgb(242, 242, 242);
+    --fg-body: rgba(242, 242, 242, 0.76);
+    --fg-muted: rgb(155, 155, 155);
+    --surface: rgb(32, 32, 32);
+    --surface-hover: rgba(242, 242, 242, 0.08);
+    --border: rgba(242, 242, 242, 0.09);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: rgb(23, 23, 23);
+  --fg: rgb(242, 242, 242);
+  --fg-body: rgba(242, 242, 242, 0.76);
+  --fg-muted: rgb(155, 155, 155);
+  --surface: rgb(32, 32, 32);
+  --surface-hover: rgba(242, 242, 242, 0.08);
+  --border: rgba(242, 242, 242, 0.09);
+
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+
+  ::selection {
+    background-color: var(--fg);
+    color: var(--bg);
+  }
+}
