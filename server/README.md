@@ -16,11 +16,18 @@ Run the server continuously and run the collector once to seed the API. The dev 
 
 ## Deployment
 
-1. Build from the repo root with `go build -o portfolio-stats-api ./server`. Run the binary behind HTTPS at `api.tchawangsa.xyz` and mount persistent storage for `STATS_DATA_FILE`. Configure it with the settings in `.env.deploy.example`. The server also accepts a host-provided `PORT` when `STATS_LISTEN_ADDR` is unset.
-2. Store a dedicated production `STATS_PUBLISH_TOKEN` in the hosting service and in the Mac collector's private configuration. Set the collector's `STATS_PUBLISH_URL` to `https://api.tchawangsa.xyz/api/agentic-stats`.
-3. Build the portfolio for `tchawangsa.xyz`. It defaults to the API URL above. To override the URL, set `VITE_AGENTIC_STATS_API_URL` at build time. Allow the portfolio's exact origin in `STATS_ALLOWED_ORIGINS` on the API.
+1. Build from the repo root with `go build -o portfolio-stats-api ./server`. Run the binary behind HTTPS at `api.tchanwangsa.xyz` and mount persistent storage for `STATS_DATA_FILE`. Configure it with the settings in `.env.deploy.example`. The server also accepts a host-provided `PORT` when `STATS_LISTEN_ADDR` is unset.
+2. Store a dedicated production `STATS_PUBLISH_TOKEN` in the hosting service and in the Mac collector's private configuration. Set the collector's `STATS_PUBLISH_URL` to `https://api.tchanwangsa.xyz/api/agentic-stats`.
+3. Build the portfolio for `tchanwangsa.xyz`. It defaults to the API URL above. To override the URL, set `VITE_AGENTIC_STATS_API_URL` at build time. Allow the portfolio's exact origin in `STATS_ALLOWED_ORIGINS` on the API.
 
 The API accepts a snapshot only when `PUT /api/agentic-stats` includes the publish token as a Bearer credential. `GET /api/agentic-stats` is public and returns the daily counts, total, top model and its token count, session count, and snapshot date. Keep the publish token in server and collector settings.
+
+### Deploy on Vercel
+
+The Vercel project serves the portfolio and the Go API from the same deployment.
+Connect a private Blob store to Production for the agentic coding snapshot. Set
+`BLOB_STORE_ID` to the store ID, use the connected `BLOB_READ_WRITE_TOKEN`, and
+add the stats publish and GitHub credentials in the Vercel project settings.
 
 ## GitHub stats
 
@@ -32,12 +39,13 @@ the Go server. Vite only needs the API URL.
 
 The card reads `GET /api/github-stats`. Locally it defaults to
 `http://127.0.0.1:8787/api/github-stats`. In production it defaults to
-`https://api.tchawangsa.xyz/api/github-stats`. Set `VITE_GITHUB_STATS_API_URL`
+`https://api.tchanwangsa.xyz/api/github-stats`. Set `VITE_GITHUB_STATS_API_URL`
 at build time to use a different endpoint. Add the portfolio's exact origin to
 `STATS_ALLOWED_ORIGINS` when hosting the API separately.
 
 The endpoint exposes seven days of public default-branch commits grouped by UTC
-author date and a link to the latest public commit GitHub Search finds. The
+author date, the latest public commit GitHub Search finds, and the total stars
+earned across public repositories owned by the configured account. The
 server caches a successful response for 30 minutes and reuses it if GitHub
 temporarily fails. When credentials are absent or the first fetch fails the
 card shows an unavailable status.

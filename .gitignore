@@ -9,3 +9,5 @@ dist
 /server/.env.dev
 /server/.env.deploy
 /data/
+/.vercel/
+/.env.local

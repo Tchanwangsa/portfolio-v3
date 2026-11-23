@@ -1,26 +1,10 @@
-export interface WeeklyRunPoint {
-  label: string;
-  km: number;
-}
-
-export interface StravaStats {
-  weeklyKm: WeeklyRunPoint[];
-  latestRun: {
-    name: string;
-    distanceKm: number;
-    duration: string;
-    pace: string;
-    when: string;
-    url: string;
-  };
-}
-
 export interface DailyCommitPoint {
   day: string;
   commits: number;
 }
 
 export interface GitHubStats {
+  stars?: number;
   asOf: string;
   dailyCommits: DailyCommitPoint[];
   latestCommit: {
@@ -45,36 +29,28 @@ export interface AgenticCodingStats {
   sessions: number;
 }
 
-// Placeholder stats for the Strava card.
-export const MOCK_STRAVA: StravaStats = {
-  weeklyKm: [
-    { label: "W-6", km: 18.4 },
-    { label: "W-5", km: 24.2 },
-    { label: "W-4", km: 14.8 },
-    { label: "W-3", km: 29.5 },
-    { label: "W-2", km: 22.1 },
-    { label: "W-1", km: 31.6 },
-    { label: "Now", km: 26.8 },
+export const RUNNING_WEEK = {
+  days: [
+    { date: "2026-11-18", distanceMeters: 0 },
+    { date: "2026-11-19", distanceMeters: 0 },
+    { date: "2026-11-20", distanceMeters: 0 },
+    { date: "2026-11-21", distanceMeters: 0 },
+    { date: "2026-11-22", distanceMeters: 10180.6 },
+    { date: "2026-11-23", distanceMeters: 0 },
+    { date: "2026-11-24", distanceMeters: 0 },
   ],
-  latestRun: {
-    name: "Evening River Loop",
-    distanceKm: 7.4,
-    duration: "36m 45s",
-    pace: "4:58 /km",
-    when: "2d ago",
-    url: "https://www.strava.com",
-  },
+  elapsedSeconds: 3339,
 };
 
 const agenticStatsEndpoint = import.meta.env.VITE_AGENTIC_STATS_API_URL ||
   (import.meta.env.DEV
     ? "http://127.0.0.1:8787/api/agentic-stats"
-    : "https://api.tchawangsa.xyz/api/agentic-stats");
+    : "https://api.tchanwangsa.xyz/api/agentic-stats");
 
 const githubStatsEndpoint = import.meta.env.VITE_GITHUB_STATS_API_URL ||
   (import.meta.env.DEV
     ? "http://127.0.0.1:8787/api/github-stats"
-    : "https://api.tchawangsa.xyz/api/github-stats");
+    : "https://api.tchanwangsa.xyz/api/github-stats");
 
 async function fetchStats<T>(url: string, timeout = 4000): Promise<T | null> {
   try {

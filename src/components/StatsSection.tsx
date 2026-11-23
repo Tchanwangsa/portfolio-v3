@@ -7,7 +7,7 @@ import {
   StravaIcon,
 } from "./Icons";
 import {
-  MOCK_STRAVA,
+  RUNNING_WEEK,
   formatModelName,
   formatTokens,
   loadAgenticCodingStats,
@@ -16,194 +16,57 @@ import {
 import { formatShortDate } from "../lib/date";
 
 function StravaCard() {
-  const [activeIdx, setActiveIdx] = createSignal<number | null>(null);
-  const points = MOCK_STRAVA.weeklyKm;
-  const totalKm = points.reduce((sum, p) => sum + p.km, 0);
-  const maxKm = Math.max(...points.map((p) => p.km), 1);
-
-  const width = 260;
-  const height = 84;
-  const padX = 10;
-  const padTop = 10;
-  const padBottom = 8;
-  const plotW = width - padX * 2;
-  const plotH = height - padTop - padBottom;
-
-  const coords = points.map((p, i) => ({
-    x: padX + (i / Math.max(points.length - 1, 1)) * plotW,
-    y: padTop + plotH - (p.km / (maxKm * 1.12)) * plotH,
-    ...p,
-  }));
-
-  const linePath = coords
-    .map((c, i) => `${i === 0 ? "M" : "L"} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)
-    .join(" ");
-
-  const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)} ${(
-    padTop + plotH
-  ).toFixed(1)} L ${coords[0].x.toFixed(1)} ${(padTop + plotH).toFixed(1)} Z`;
-
-  const headline = () => {
-    const idx = activeIdx();
-    if (idx !== null) {
-      const p = points[idx];
-      return `${p.km.toFixed(1)} km`;
-    }
-    return `${totalKm.toFixed(1)} km`;
-  };
+  const { days, elapsedSeconds } = RUNNING_WEEK;
+  const totalKm = days.reduce((sum, day) => sum + day.distanceMeters, 0) / 1000;
+  const maxDistance = Math.max(1, ...days.map((day) => day.distanceMeters));
+  const period = `${formatShortDate(days[0].date)} – ${formatShortDate(days[days.length - 1].date)}`;
+  const elapsed = `${Math.floor(elapsedSeconds / 60)}m ${elapsedSeconds % 60}s`;
 
   return (
     <article class="flex flex-col rounded-2xl bg-[var(--surface)] p-5">
       <div class="mb-4 flex items-center justify-between gap-2">
         <div class="flex items-center gap-2 text-[var(--fg-muted)]">
           <StravaIcon class="h-3.5 w-3.5 shrink-0" />
-          <span class="text-xs font-medium">Strava</span>
+          <span class="text-xs font-medium">Running</span>
         </div>
-
-        <div class="text-right text-sm font-medium text-[var(--fg)] tabular-nums">
-          {headline()}
-        </div>
+        <span class="text-sm font-medium text-[var(--fg)] tabular-nums">
+          {totalKm.toFixed(2)} km
+        </span>
       </div>
-
-      {/* 7-week line/area graph */}
-      <div
-        class="relative flex flex-1 flex-col justify-end"
-        onMouseLeave={() => setActiveIdx(null)}
-        role="img"
-        aria-label="Kilometers run over the last 7 weeks"
-      >
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          class="h-[84px] w-full overflow-visible"
-        >
-          <defs>
-            <linearGradient id="strava-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="currentColor" stop-opacity="0.16" />
-              <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
-            </linearGradient>
-          </defs>
-
-          {/* Subtle horizontal guide lines */}
-          <line
-            x1={padX}
-            y1={padTop}
-            x2={width - padX}
-            y2={padTop}
-            stroke="currentColor"
-            stroke-opacity="0.08"
-            stroke-dasharray="2 3"
-          />
-          <line
-            x1={padX}
-            y1={padTop + plotH / 2}
-            x2={width - padX}
-            y2={padTop + plotH / 2}
-            stroke="currentColor"
-            stroke-opacity="0.08"
-            stroke-dasharray="2 3"
-          />
-          <line
-            x1={padX}
-            y1={padTop + plotH}
-            x2={width - padX}
-            y2={padTop + plotH}
-            stroke="currentColor"
-            stroke-opacity="0.12"
-          />
-
-          <path d={areaPath} fill="url(#strava-fill)" class="text-[var(--fg)]" />
-          <path
-            d={linePath}
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.75"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="text-[var(--fg)]"
-          />
-
-          <For each={coords}>
-            {(c, i) => {
-              const isActive = () => activeIdx() === i();
+      <div class="flex flex-1 items-end" role="group" aria-label={`Daily running distance, ${period}`}>
+        <div class="grid w-full grid-cols-7 gap-x-2">
+          <For each={days}>
+            {(day) => {
+              const label = formatShortDate(day.date);
+              const distance = day.distanceMeters;
               return (
-                <g
-                  class="cursor-pointer"
-                  onMouseEnter={() => setActiveIdx(i())}
+                <div
+                  class="min-w-0"
+                  title={`${label} · ${(distance / 1000).toFixed(2)} km`}
                 >
-                  {/* Invisible wider hit target */}
-                  <rect
-                    x={c.x - plotW / (points.length * 2)}
-                    y={0}
-                    width={plotW / points.length}
-                    height={height}
-                    fill="transparent"
-                  />
-                  {isActive() && (
-                    <line
-                      x1={c.x}
-                      y1={padTop}
-                      x2={c.x}
-                      y2={padTop + plotH}
-                      stroke="currentColor"
-                      stroke-opacity="0.22"
-                      stroke-width="1"
+                  <div class="flex h-[84px] items-end border-b border-[var(--border)] pb-1.5" aria-hidden="true">
+                    <span
+                      class="w-full rounded-t-sm bg-[var(--fg)] opacity-85"
+                      style={{ height: `${(distance / maxDistance) * 100}%` }}
                     />
-                  )}
-                  <circle
-                    cx={c.x}
-                    cy={c.y}
-                    r={isActive() ? 3.5 : 2.25}
-                    class="fill-[var(--fg)] transition-all duration-150"
-                    opacity={
-                      activeIdx() === null || isActive() ? 1 : 0.35
-                    }
-                  />
-                </g>
+                  </div>
+                  <time
+                    dateTime={day.date}
+                    class="mt-1.5 block text-center text-[11px] text-[var(--fg-muted)]"
+                    aria-label={`${label}, ${(distance / 1000).toFixed(2)} kilometers`}
+                  >
+                    {day.date.slice(-2)}
+                  </time>
+                </div>
               );
             }}
           </For>
-        </svg>
-
-        <div class="mt-1.5 flex items-center justify-between px-1 text-[11px] text-[var(--fg-muted)]">
-          <For each={points}>
-            {(p, i) => (
-              <span
-                class={`transition-colors duration-150 ${
-                  activeIdx() === i() ? "text-[var(--fg)]" : ""
-                }`}
-              >
-                {p.label}
-              </span>
-            )}
-          </For>
         </div>
       </div>
-
-      {/* Latest run */}
-      <div class="mt-4 border-t border-[var(--border)] pt-2.5">
-        <a
-          href={MOCK_STRAVA.latestRun.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="group -mx-2 block rounded-lg px-2 py-1.5 transition-colors duration-150 hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] focus-visible:outline-none"
-        >
-          <div class="flex items-center justify-between gap-2 text-xs text-[var(--fg-muted)]">
-            <span>Latest run</span>
-            <span>{MOCK_STRAVA.latestRun.when}</span>
-          </div>
-          <div
-            class="mt-1 flex items-center gap-1 text-[13.5px] font-medium text-[var(--fg)]"
-            title={MOCK_STRAVA.latestRun.name}
-          >
-            <span class="truncate">{MOCK_STRAVA.latestRun.name}</span>
-            <ArrowUpRightIcon class="h-3 w-3 shrink-0 text-[var(--fg-muted)] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--fg)]" />
-          </div>
-          <div class="mt-0.5 truncate text-xs text-[var(--fg-muted)] tabular-nums">
-            {MOCK_STRAVA.latestRun.distanceKm} km · {MOCK_STRAVA.latestRun.duration} ·{" "}
-            {MOCK_STRAVA.latestRun.pace}
-          </div>
-        </a>
-      </div>
+      <dl class="mt-4 flex justify-between gap-3 border-t border-[var(--border)] pt-3 text-xs text-[var(--fg-muted)]">
+        <div><dt>Seven-day snapshot</dt><dd class="mt-1 font-medium text-[var(--fg)]">{period}</dd></div>
+        <div class="text-right"><dt>Elapsed time</dt><dd class="mt-1 font-medium text-[var(--fg)] tabular-nums">{elapsed}</dd></div>
+      </dl>
     </article>
   );
 }
@@ -226,6 +89,11 @@ function GitHubCard() {
         <div class="flex items-center gap-2 text-[var(--fg-muted)]">
           <GitHubIcon class="h-3.5 w-3.5 shrink-0" />
           <span class="text-xs font-medium">GitHub</span>
+          <Show when={stats()?.stars !== undefined}>
+            <span class="border-l border-[var(--border)] pl-2 text-xs tabular-nums" title="Stars earned across public repositories">
+              {stats()?.stars?.toLocaleString()} stars
+            </span>
+          </Show>
         </div>
 
         <div class="text-right text-sm font-medium text-[var(--fg)] tabular-nums">
