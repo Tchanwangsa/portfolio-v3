@@ -49,3 +49,12 @@ earned across public repositories owned by the configured account. The
 server caches a successful response for 30 minutes and reuses it if GitHub
 temporarily fails. When credentials are absent or the first fetch fails the
 card shows an unavailable status.
+
+## Running stats
+
+Set a dedicated `RUNS_WEBHOOK_TOKEN` in production to enable the running API.
+IFTTT sends authenticated POST requests to `/api/runs` with the run name, activity
+type, timestamp, distance in metres, elapsed seconds, and Strava activity URL.
+The public GET response supplies the weekly totals and latest run shown on the
+portfolio. Weeks start Monday in Melbourne. The API discards deliveries outside
+the seven-week window and deduplicates retries by activity ID.

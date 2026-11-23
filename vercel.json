@@ -6,6 +6,7 @@
     {"source": "/healthz", "destination": "/api/portfolio?__portfolio_route=/healthz"},
     {"source": "/api/agentic-stats", "destination": "/api/portfolio?__portfolio_route=/api/agentic-stats"},
     {"source": "/api/github-stats", "destination": "/api/portfolio?__portfolio_route=/api/github-stats"},
+    {"source": "/api/runs", "destination": "/api/portfolio?__portfolio_route=/api/runs"},
     { "source": "/projects/:path*", "destination": "/index.html" },
     { "source": "/blog/:path*", "destination": "/index.html" },
     { "source": "/blogs/:path*", "destination": "/index.html" }

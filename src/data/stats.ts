@@ -29,8 +29,20 @@ export interface AgenticCodingStats {
   sessions: number;
 }
 
+export interface StravaStats {
+  weeklyKm: { label: string; km: number }[];
+  latestRun: {
+    name: string;
+    distanceKm: number;
+    duration: string;
+    pace: string;
+    when: string;
+    url: string;
+  } | null;
+}
+
 // Melbourne calendar weeks from the Strava export, through 24 November 2026.
-export const STRAVA_STATS = {
+export const STRAVA_STATS: StravaStats = {
   weeklyKm: [
     { label: "W-6", km: 16.9135 },
     { label: "W-5", km: 10.5584 },
@@ -50,6 +62,11 @@ export const STRAVA_STATS = {
   },
 };
 
+const stravaStatsEndpoint = import.meta.env.VITE_STRAVA_STATS_API_URL ||
+  (import.meta.env.DEV
+    ? "http://127.0.0.1:8787/api/runs"
+    : "https://api.tchanwangsa.xyz/api/runs");
+
 const agenticStatsEndpoint = import.meta.env.VITE_AGENTIC_STATS_API_URL ||
   (import.meta.env.DEV
     ? "http://127.0.0.1:8787/api/agentic-stats"
@@ -67,6 +84,10 @@ async function fetchStats<T>(url: string, timeout = 4000): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+export async function loadStravaStats(): Promise<StravaStats> {
+  return (await fetchStats<StravaStats>(stravaStatsEndpoint)) ?? STRAVA_STATS;
 }
 
 export async function loadAgenticCodingStats(): Promise<AgenticCodingStats | null> {

@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 import {
   ArrowUpRightIcon,
   GitHubIcon,
@@ -12,14 +12,15 @@ import {
   formatTokens,
   loadAgenticCodingStats,
   loadGitHubStats,
+  loadStravaStats,
 } from "../data/stats";
 import { formatShortDate } from "../lib/date";
 
 function StravaCard() {
   const [activeIdx, setActiveIdx] = createSignal<number | null>(null);
-  const points = STRAVA_STATS.weeklyKm;
-  const totalKm = points.reduce((sum, p) => sum + p.km, 0);
-  const maxKm = Math.max(...points.map((p) => p.km), 1);
+  const [stats] = createResource(loadStravaStats, { initialValue: STRAVA_STATS });
+  const points = () => stats().weeklyKm;
+  const totalKm = () => points().reduce((sum, p) => sum + p.km, 0);
 
   const width = 260;
   const height = 84;
@@ -29,27 +30,33 @@ function StravaCard() {
   const plotW = width - padX * 2;
   const plotH = height - padTop - padBottom;
 
-  const coords = points.map((p, i) => ({
-    x: padX + (i / Math.max(points.length - 1, 1)) * plotW,
-    y: padTop + plotH - (p.km / (maxKm * 1.12)) * plotH,
-    ...p,
-  }));
+  const coords = createMemo(() => {
+    const weeks = points();
+    const maxKm = Math.max(...weeks.map((p) => p.km), 1);
+    return weeks.map((p, i) => ({
+      x: padX + (i / Math.max(weeks.length - 1, 1)) * plotW,
+      y: padTop + plotH - (p.km / (maxKm * 1.12)) * plotH,
+      ...p,
+    }));
+  });
 
-  const linePath = coords
+  const linePath = () => coords()
     .map((c, i) => `${i === 0 ? "M" : "L"} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)
     .join(" ");
 
-  const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)} ${(
-    padTop + plotH
-  ).toFixed(1)} L ${coords[0].x.toFixed(1)} ${(padTop + plotH).toFixed(1)} Z`;
+  const areaPath = () => {
+    const last = coords()[coords().length - 1];
+    const first = coords()[0];
+    return `${linePath()} L ${last.x.toFixed(1)} ${(padTop + plotH).toFixed(1)} L ${first.x.toFixed(1)} ${(padTop + plotH).toFixed(1)} Z`;
+  };
 
   const headline = () => {
     const idx = activeIdx();
     if (idx !== null) {
-      const p = points[idx];
+      const p = points()[idx];
       return `${p.km.toFixed(1)} km`;
     }
-    return `${totalKm.toFixed(1)} km`;
+    return `${totalKm().toFixed(1)} km`;
   };
 
   return (
@@ -111,9 +118,9 @@ function StravaCard() {
             stroke-opacity="0.12"
           />
 
-          <path d={areaPath} fill="url(#strava-fill)" class="text-[var(--fg)]" />
+          <path d={areaPath()} fill="url(#strava-fill)" class="text-[var(--fg)]" />
           <path
-            d={linePath}
+            d={linePath()}
             fill="none"
             stroke="currentColor"
             stroke-width="1.75"
@@ -122,7 +129,7 @@ function StravaCard() {
             class="text-[var(--fg)]"
           />
 
-          <For each={coords}>
+          <For each={coords()}>
             {(c, i) => {
               const isActive = () => activeIdx() === i();
               return (
@@ -132,9 +139,9 @@ function StravaCard() {
                 >
                   {/* Invisible wider hit target */}
                   <rect
-                    x={c.x - plotW / (points.length * 2)}
+                    x={c.x - plotW / (points().length * 2)}
                     y={0}
-                    width={plotW / points.length}
+                    width={plotW / points().length}
                     height={height}
                     fill="transparent"
                   />
@@ -165,7 +172,7 @@ function StravaCard() {
         </svg>
 
         <div class="mt-1.5 flex items-center justify-between px-1 text-[11px] text-[var(--fg-muted)]">
-          <For each={points}>
+          <For each={points()}>
             {(p, i) => (
               <span
                 class={`transition-colors duration-150 ${
@@ -181,28 +188,32 @@ function StravaCard() {
 
       {/* Latest run */}
       <div class="mt-4 border-t border-[var(--border)] pt-2.5">
-        <a
-          href={STRAVA_STATS.latestRun.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="group -mx-2 block rounded-lg px-2 py-1.5 transition-colors duration-150 hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] focus-visible:outline-none"
-        >
-          <div class="flex items-center justify-between gap-2 text-xs text-[var(--fg-muted)]">
-            <span>Latest run</span>
-            <span>{STRAVA_STATS.latestRun.when}</span>
-          </div>
-          <div
-            class="mt-1 flex items-center gap-1 text-[13.5px] font-medium text-[var(--fg)]"
-            title={STRAVA_STATS.latestRun.name}
-          >
-            <span class="truncate">{STRAVA_STATS.latestRun.name}</span>
-            <ArrowUpRightIcon class="h-3 w-3 shrink-0 text-[var(--fg-muted)] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--fg)]" />
-          </div>
-          <div class="mt-0.5 truncate text-xs text-[var(--fg-muted)] tabular-nums">
-            {STRAVA_STATS.latestRun.distanceKm} km · {STRAVA_STATS.latestRun.duration} ·{" "}
-            {STRAVA_STATS.latestRun.pace}
-          </div>
-        </a>
+        <Show when={stats().latestRun} fallback={<p class="py-1.5 text-xs text-[var(--fg-muted)]">No runs in the last seven weeks.</p>} keyed>
+          {(run) => (
+            <a
+              href={run.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group -mx-2 block rounded-lg px-2 py-1.5 transition-colors duration-150 hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] focus-visible:outline-none"
+            >
+              <div class="flex items-center justify-between gap-2 text-xs text-[var(--fg-muted)]">
+                <span>Latest run</span>
+                <span>{run.when}</span>
+              </div>
+              <div
+                class="mt-1 flex items-center gap-1 text-[13.5px] font-medium text-[var(--fg)]"
+                title={run.name}
+              >
+                <span class="truncate">{run.name}</span>
+                <ArrowUpRightIcon class="h-3 w-3 shrink-0 text-[var(--fg-muted)] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--fg)]" />
+              </div>
+              <div class="mt-0.5 truncate text-xs text-[var(--fg-muted)] tabular-nums">
+                {run.distanceKm} km · {run.duration} ·{" "}
+                {run.pace}
+              </div>
+            </a>
+          )}
+        </Show>
       </div>
     </article>
   );

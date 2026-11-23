@@ -15,25 +15,25 @@ type document interface {
 	update(context.Context, func(current []byte) (next []byte, err error)) error
 }
 
-func openStatsDocument(env func(string) string, statsFile string) (document, error) {
+func openDocument(env func(string) string, path, blobKey string) (document, error) {
 	if id := strings.TrimPrefix(env("BLOB_STORE_ID"), "store_"); id != "" {
 		token := env("BLOB_READ_WRITE_TOKEN")
 		if token == "" {
 			return nil, errors.New("BLOB_READ_WRITE_TOKEN is required for the private Blob store")
 		}
-		return &blobDocument{storeID: id, token: token, key: "agentic-stats.json"}, nil
+		return &blobDocument{storeID: id, token: token, key: blobKey}, nil
 	}
 	if env("VERCEL") == "1" {
 		return nil, errors.New("configure a private Blob store for the deployed API")
 	}
-	statsPath, err := filepath.Abs(statsFile)
+	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(statsPath), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
 	}
-	return &fileDocument{path: statsPath}, nil
+	return &fileDocument{path: path}, nil
 }
 
 type fileDocument struct {

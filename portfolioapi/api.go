@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"portfolio-v3/internal/stats"
@@ -30,7 +31,7 @@ func New(env func(string) string) (http.Handler, error) {
 	if statsFile == "" {
 		statsFile = "data/agentic-stats.json"
 	}
-	statsData, err := openStatsDocument(env, statsFile)
+	statsData, err := openDocument(env, statsFile, "agentic-stats.json")
 	if err != nil {
 		return nil, err
 	}
@@ -57,6 +58,25 @@ func New(env func(string) string) (http.Handler, error) {
 	mux.HandleFunc("GET "+stats.Path, api.get)
 	mux.HandleFunc("PUT "+stats.Path, api.publish)
 	mux.HandleFunc("GET "+githubStatsPath, api.getGitHub)
+	if webhookToken := env("RUNS_WEBHOOK_TOKEN"); webhookToken != "" {
+		if len(webhookToken) < 32 || webhookToken == token {
+			return nil, errors.New("set a distinct RUNS_WEBHOOK_TOKEN of at least 32 characters")
+		}
+		runFile := filepath.Join(filepath.Dir(statsFile), "running-stats.json")
+		if runFile == filepath.Clean(statsFile) {
+			return nil, errors.New("STATS_DATA_FILE conflicts with the running stats file")
+		}
+		runData, err := openDocument(env, runFile, "running-stats.json")
+		if err != nil {
+			return nil, err
+		}
+		runs := &runningAPI{data: runData, tokenHash: sha256.Sum256([]byte(webhookToken))}
+		mux.HandleFunc("GET "+runsPath, func(w http.ResponseWriter, r *http.Request) {
+			api.setReadHeaders(w, r)
+			runs.get(w, r)
+		})
+		mux.HandleFunc("POST "+runsPath, runs.receive)
+	}
 	return mux, nil
 }
 
@@ -84,10 +104,14 @@ func (api *statsAPI) get(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-func (api *statsAPI) publish(w http.ResponseWriter, r *http.Request) {
+func hasBearerToken(r *http.Request, expected [sha256.Size]byte) bool {
 	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	hash := sha256.Sum256([]byte(token))
-	if !ok || subtle.ConstantTimeCompare(hash[:], api.tokenHash[:]) != 1 {
+	return ok && subtle.ConstantTimeCompare(hash[:], expected[:]) == 1
+}
+
+func (api *statsAPI) publish(w http.ResponseWriter, r *http.Request) {
+	if !hasBearerToken(r, api.tokenHash) {
 		w.Header().Set("WWW-Authenticate", "Bearer")
 		http.Error(w, "Invalid publish token", http.StatusUnauthorized)
 		return

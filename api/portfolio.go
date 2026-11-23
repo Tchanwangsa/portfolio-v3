@@ -23,7 +23,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/api/portfolio" {
 		path := r.URL.Query().Get("__portfolio_route")
 		switch path {
-		case "/healthz", "/api/agentic-stats", "/api/github-stats":
+		case "/healthz", "/api/agentic-stats", "/api/github-stats", "/api/runs":
 			r.URL.Path = path
 			r.URL.RawPath = ""
 		default:
