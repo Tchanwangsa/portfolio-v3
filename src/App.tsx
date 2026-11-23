@@ -30,10 +30,11 @@ export default function App(props: RouteSectionProps) {
       <header class="mb-10 flex items-center justify-between gap-4 sm:mb-12">
         <A
           href="/"
+          aria-label="Tanat Chanwangsa"
           class="inline-flex items-center gap-2.5 text-[var(--fg)] transition-opacity duration-150 hover:opacity-75"
         >
           <Logo class="h-[24px] w-[24px] shrink-0" />
-          <span class="font-sans text-xs font-bold leading-none tracking-[0.06em] uppercase sm:text-sm">
+          <span class="hidden whitespace-nowrap font-sans text-xs font-bold leading-none tracking-[0.06em] uppercase min-[420px]:inline sm:text-sm">
             Tanat Chanwangsa
           </span>
         </A>
