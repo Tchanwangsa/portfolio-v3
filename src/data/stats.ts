@@ -36,16 +36,15 @@ export interface DailyTokenPoint {
 }
 
 export interface AgenticCodingStats {
+  asOf: string;
   dailyTokens: DailyTokenPoint[];
-  mostUsedModel: string;
+  mostUsedModel: string | null;
+  mostUsedModelTokens?: number;
   totalTokens: number;
   sessions: number;
 }
 
-/**
- * Placeholder stats — swap these out with API fetches (Strava, GitHub,
- * and a future local-to-web gateway for agentic coding telemetry).
- */
+// Placeholder stats for the Strava and GitHub cards.
 export const MOCK_STRAVA: StravaStats = {
   weeklyKm: [
     { label: "W-6", km: 18.4 },
@@ -84,22 +83,44 @@ export const MOCK_GITHUB: GitHubStats = {
   },
 };
 
-export const MOCK_AGENTIC: AgenticCodingStats = {
-  dailyTokens: [
-    { day: "Tue", tokens: 2_450_000 },
-    { day: "Wed", tokens: 4_120_000 },
-    { day: "Thu", tokens: 1_890_000 },
-    { day: "Fri", tokens: 5_640_000 },
-    { day: "Sat", tokens: 3_280_000 },
-    { day: "Sun", tokens: 2_910_000 },
-    { day: "Mon", tokens: 4_530_000 },
-  ],
-  mostUsedModel: "claude-opus-4",
-  totalTokens: 24_820_000,
-  sessions: 38,
-};
+const agenticStatsEndpoint = import.meta.env.VITE_AGENTIC_STATS_API_URL ||
+  (import.meta.env.DEV
+    ? "http://127.0.0.1:8787/api/agentic-stats"
+    : "https://api.tchawangsa.xyz/api/agentic-stats");
+
+async function fetchAgenticStats(url: string): Promise<AgenticCodingStats | null> {
+  try {
+    const response = await fetch(url, { cache: "no-cache", signal: AbortSignal.timeout(4000) });
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function loadAgenticCodingStats(): Promise<AgenticCodingStats | null> {
+  const stats = await fetchAgenticStats(agenticStatsEndpoint);
+  if (stats || !import.meta.env.DEV) return stats;
+
+  return fetchAgenticStats(`${import.meta.env.BASE_URL}agentic-stats.json`);
+}
+
+export function formatModelName(model: string): string {
+  const name = model.replace(/^(anthropic|openai|google)\//i, "").toLowerCase();
+  if (!/^(claude-|gpt-\d|gemini-\d)/.test(name)) return model;
+
+  return name
+    .replace(/-(?:\d{8}|\d{4}-\d{2}-\d{2})$/, "")
+    .replace(/(\d)-(?=\d)/g, "$1.")
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+    .replace(/^Gpt /, "GPT-");
+}
 
 export function formatTokens(count: number): string {
+  if (count >= 1_000_000_000) {
+    return `${(count / 1_000_000_000).toFixed(1)}B`;
+  }
   if (count >= 1_000_000) {
     return `${(count / 1_000_000).toFixed(1)}M`;
   }

@@ -1,4 +1,4 @@
-import { createSignal, For } from "solid-js";
+import { createResource, createSignal, For, Show } from "solid-js";
 import {
   ArrowUpRightIcon,
   GitHubIcon,
@@ -7,10 +7,11 @@ import {
   StravaIcon,
 } from "./Icons";
 import {
-  MOCK_AGENTIC,
   MOCK_GITHUB,
   MOCK_STRAVA,
+  formatModelName,
   formatTokens,
+  loadAgenticCodingStats,
 } from "../data/stats";
 
 function StravaCard() {
@@ -324,15 +325,15 @@ function GitHubCard() {
 
 function AgenticCodingCard() {
   const [activeIdx, setActiveIdx] = createSignal<number | null>(null);
-  const days = MOCK_AGENTIC.dailyTokens;
-  const maxTokens = Math.max(...days.map((d) => d.tokens), 1);
+  const [stats] = createResource(loadAgenticCodingStats);
 
   const headline = () => {
+    const snapshot = stats();
+    if (!snapshot) return null;
+
     const idx = activeIdx();
-    if (idx !== null) {
-      return `${formatTokens(days[idx].tokens)} tokens`;
-    }
-    return `${formatTokens(MOCK_AGENTIC.totalTokens)} tokens`;
+    const tokens = idx === null ? snapshot.totalTokens : snapshot.dailyTokens[idx].tokens;
+    return `${formatTokens(tokens)} tokens`;
   };
 
   return (
@@ -348,89 +349,121 @@ function AgenticCodingCard() {
         </div>
       </div>
 
-      {/* 7-day tokens bar chart */}
-      <div
-        onMouseLeave={() => setActiveIdx(null)}
-        role="img"
-        aria-label="Tokens spent on agentic coding over the last 7 days"
+      <Show
+        when={stats()}
+        keyed
+        fallback={
+          <p class="text-sm text-[var(--fg-muted)]" role="status">
+            {stats.loading ? "Loading usage stats…" : "Usage stats are unavailable."}
+          </p>
+        }
       >
-        <div class="flex h-[88px] items-end gap-2.5 border-b border-[var(--border)] px-0.5 pb-1.5 sm:gap-3">
-          <For each={days}>
-            {(d, i) => {
-              const pct = Math.max((d.tokens / maxTokens) * 100, 10);
-              const isActive = () => activeIdx() === i();
-              const isDimmed = () =>
-                activeIdx() !== null && activeIdx() !== i();
-              return (
-                <button
-                  type="button"
-                  onMouseEnter={() => setActiveIdx(i())}
-                  onFocus={() => setActiveIdx(i())}
-                  onBlur={() => setActiveIdx(null)}
-                  class="flex h-full flex-1 cursor-pointer items-end focus:outline-none"
-                  aria-label={`${d.day}: ${formatTokens(d.tokens)} tokens`}
-                >
-                  <span
-                    class="block w-full rounded-t-[4px] bg-[var(--fg)] transition-all duration-150"
-                    style={{
-                      height: `${pct}%`,
-                      opacity: isActive()
-                        ? "1"
-                        : isDimmed()
-                        ? "0.22"
-                        : i() === days.length - 1
-                        ? "0.85"
-                        : "0.38",
-                    }}
-                  />
-                </button>
-              );
-            }}
-          </For>
-        </div>
-
-        <div class="mt-1.5 flex items-center justify-between px-0.5 text-[11px] text-[var(--fg-muted)]">
-          <For each={days}>
-            {(d, i) => (
-              <span
-                class={`flex-1 text-center transition-colors duration-150 ${
-                  activeIdx() === i() ? "text-[var(--fg)]" : ""
-                }`}
+        {(snapshot) => {
+          const days = snapshot.dailyTokens;
+          const maxTokens = Math.max(...days.map((day) => day.tokens), 1);
+          return (
+            <>
+              <div
+                onMouseLeave={() => setActiveIdx(null)}
+                role="group"
+                aria-label={`Daily agentic coding tokens for the seven days through ${snapshot.asOf}`}
               >
-                {d.day}
-              </span>
-            )}
-          </For>
-        </div>
-      </div>
+                <div class="flex h-[88px] items-end gap-2.5 border-b border-[var(--border)] px-0.5 pb-1.5 sm:gap-3">
+                  <For each={days}>
+                    {(d, i) => {
+                      const pct = d.tokens === 0 ? 0 : Math.max((d.tokens / maxTokens) * 100, 10);
+                      const isActive = () => activeIdx() === i();
+                      const isDimmed = () =>
+                        activeIdx() !== null && activeIdx() !== i();
+                      return (
+                        <button
+                          type="button"
+                          onMouseEnter={() => setActiveIdx(i())}
+                          onFocus={() => setActiveIdx(i())}
+                          onBlur={() => setActiveIdx(null)}
+                          class="flex h-full flex-1 cursor-pointer items-end focus:outline-none"
+                          aria-label={`${d.day}: ${formatTokens(d.tokens)} tokens`}
+                        >
+                          <span
+                            class="block w-full rounded-t-[4px] bg-[var(--fg)] transition-all duration-150"
+                            style={{
+                              height: `${pct}%`,
+                              opacity: isActive()
+                                ? "1"
+                                : isDimmed()
+                                ? "0.22"
+                                : i() === days.length - 1
+                                ? "0.85"
+                                : "0.38",
+                            }}
+                          />
+                        </button>
+                      );
+                    }}
+                  </For>
+                </div>
 
-      {/* Bottom stats row: most used model + total token count */}
-      <div class="mt-4 grid grid-cols-2 gap-4 border-t border-[var(--border)] pt-3.5 sm:grid-cols-3">
-        <div class="min-w-0">
-          <div class="text-xs text-[var(--fg-muted)]">Most used model</div>
-          <div class="mt-1 flex items-center gap-1.5 text-[13.5px] font-medium text-[var(--fg)]">
-            <ModelIcon
-              model={MOCK_AGENTIC.mostUsedModel}
-              class="h-3.5 w-3.5 shrink-0 text-[var(--fg)]"
-            />
-            <span class="truncate">{MOCK_AGENTIC.mostUsedModel}</span>
-          </div>
-        </div>
+                <div class="mt-1.5 flex items-center justify-between px-0.5 text-[11px] text-[var(--fg-muted)]">
+                  <For each={days}>
+                    {(d, i) => (
+                      <span
+                        class={`flex-1 text-center transition-colors duration-150 ${
+                          activeIdx() === i() ? "text-[var(--fg)]" : ""
+                        }`}
+                      >
+                        {d.day}
+                      </span>
+                    )}
+                  </For>
+                </div>
+              </div>
 
-        <div class="min-w-0">
-          <div class="text-xs text-[var(--fg-muted)]">Tokens (7d)</div>
-          <div class="mt-1 text-[13.5px] font-medium text-[var(--fg)] tabular-nums">
-            {MOCK_AGENTIC.totalTokens.toLocaleString()}
-          </div>
-        </div>
+              <div class="mt-4 flex items-start justify-between gap-3 border-t border-[var(--border)] pt-3.5 sm:gap-4">
+                <div class="min-w-0">
+                  <div class="text-xs text-[var(--fg-muted)]">Most used model (7d)</div>
+                  <div class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13.5px] font-medium text-[var(--fg)]">
+                    <Show when={snapshot.mostUsedModel} fallback="—" keyed>
+                      {(model) => {
+                        const name = formatModelName(model);
+                        return (
+                          <>
+                            <span class="inline-flex min-w-0 items-center gap-1.5">
+                              <ModelIcon model={model} class="h-3.5 w-3.5 shrink-0 text-[var(--fg)]" />
+                              <span class="min-w-0 [overflow-wrap:anywhere]" title={name}>{name}</span>
+                            </span>
+                            <Show when={snapshot.mostUsedModelTokens} keyed>
+                              {(tokens) => (
+                                <span class="text-xs tabular-nums" title={`${tokens.toLocaleString()} tokens`}>
+                                  ({formatTokens(tokens)} tokens)
+                                </span>
+                              )}
+                            </Show>
+                          </>
+                        );
+                      }}
+                    </Show>
+                  </div>
+                </div>
 
-        <div class="hidden min-w-0 sm:block sm:text-right">
-          <div class="text-xs text-[var(--fg-muted)]">Sessions</div>
-          <div class="mt-1 text-[13.5px] font-medium text-[var(--fg)] tabular-nums">
-            {MOCK_AGENTIC.sessions}
-          </div>
-        </div>
-      </div>
+                <dl class="flex shrink-0 gap-3 text-right sm:gap-6" aria-label="Totals across all tracked agents over 7 days">
+                  <div>
+                    <dt class="text-xs text-[var(--fg-muted)]">Tokens</dt>
+                    <dd class="mt-1 text-[13.5px] font-medium text-[var(--fg)] tabular-nums">
+                      {snapshot.totalTokens.toLocaleString()}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs text-[var(--fg-muted)]">Sessions</dt>
+                    <dd class="mt-1 text-[13.5px] font-medium text-[var(--fg)] tabular-nums">
+                      {snapshot.sessions.toLocaleString()}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </>
+          );
+        }}
+      </Show>
     </article>
   );
 }
