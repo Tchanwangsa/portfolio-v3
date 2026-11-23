@@ -8,6 +8,7 @@ export interface StravaStats {
   latestRun: {
     name: string;
     distanceKm: number;
+    duration: string;
     pace: string;
     when: string;
     url: string;
@@ -58,6 +59,7 @@ export const MOCK_STRAVA: StravaStats = {
   latestRun: {
     name: "Evening River Loop",
     distanceKm: 7.4,
+    duration: "36m 45s",
     pace: "4:58 /km",
     when: "2d ago",
     url: "https://www.strava.com",

@@ -16,13 +16,13 @@ export function AboutSection() {
     >
       {/* Top row: portrait + greeting & contacts */}
       <div class="mb-6 flex items-center gap-4 sm:gap-5">
-        <figure class="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg)] sm:h-[80px] sm:w-[80px]">
+        <figure class="h-[80px] w-[80px] shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg)] sm:h-[88px] sm:w-[88px]">
           <img
             src="/portrait.jpg"
             alt="Portrait of Tanat Chanwangsa"
-            class="block h-full w-full object-cover"
-            width={80}
-            height={80}
+            class="block h-full w-full origin-[50%_35%] scale-[1.22] object-cover"
+            width={88}
+            height={88}
           />
         </figure>
 

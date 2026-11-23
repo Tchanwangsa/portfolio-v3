@@ -65,7 +65,7 @@ function StravaCard() {
 
       {/* 7-week line/area graph */}
       <div
-        class="relative"
+        class="relative flex flex-1 flex-col justify-end"
         onMouseLeave={() => setActiveIdx(null)}
         role="img"
         aria-label="Kilometers run over the last 7 weeks"
@@ -189,14 +189,16 @@ function StravaCard() {
             <span>Latest run</span>
             <span>{MOCK_STRAVA.latestRun.when}</span>
           </div>
-          <div class="mt-1 flex items-center justify-between gap-2">
-            <span class="inline-flex min-w-0 items-center gap-1 text-[13.5px] font-medium text-[var(--fg)]">
-              <span class="truncate">{MOCK_STRAVA.latestRun.name}</span>
-              <ArrowUpRightIcon class="h-3 w-3 shrink-0 text-[var(--fg-muted)] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--fg)]" />
-            </span>
-            <span class="shrink-0 text-xs text-[var(--fg-muted)] tabular-nums">
-              {MOCK_STRAVA.latestRun.distanceKm} km · {MOCK_STRAVA.latestRun.pace}
-            </span>
+          <div
+            class="mt-1 flex items-center gap-1 text-[13.5px] font-medium text-[var(--fg)]"
+            title={MOCK_STRAVA.latestRun.name}
+          >
+            <span class="truncate">{MOCK_STRAVA.latestRun.name}</span>
+            <ArrowUpRightIcon class="h-3 w-3 shrink-0 text-[var(--fg-muted)] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--fg)]" />
+          </div>
+          <div class="mt-0.5 truncate text-xs text-[var(--fg-muted)] tabular-nums">
+            {MOCK_STRAVA.latestRun.distanceKm} km · {MOCK_STRAVA.latestRun.duration} ·{" "}
+            {MOCK_STRAVA.latestRun.pace}
           </div>
         </a>
       </div>
@@ -301,9 +303,18 @@ function GitHubCard() {
             <span>Latest commit</span>
             <span>{MOCK_GITHUB.latestProject.when}</span>
           </div>
-          <div class="mt-1 flex items-center gap-1 text-[13.5px] font-medium text-[var(--fg)]">
+          <div
+            class="mt-1 flex items-center gap-1 text-[13.5px] font-medium text-[var(--fg)]"
+            title={MOCK_GITHUB.latestProject.repo}
+          >
             <span class="truncate">{MOCK_GITHUB.latestProject.repo}</span>
             <ArrowUpRightIcon class="h-3 w-3 shrink-0 text-[var(--fg-muted)] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--fg)]" />
+          </div>
+          <div
+            class="mt-0.5 truncate text-xs text-[var(--fg-muted)]"
+            title={MOCK_GITHUB.latestProject.message}
+          >
+            {MOCK_GITHUB.latestProject.message}
           </div>
         </a>
       </div>
