@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import {
   ArrowUpRightIcon,
   GitHubIcon,
@@ -22,19 +22,31 @@ function StravaCard() {
   const points = () => stats().weeklyKm;
   const totalKm = () => points().reduce((sum, p) => sum + p.km, 0);
 
-  const width = 260;
+  // Draw in CSS pixels so the points line up with the HTML week labels at any
+  // card width. A fixed viewBox would letterbox the plot on wide cards.
+  let chartEl: HTMLDivElement | undefined;
+  const [width, setWidth] = createSignal(260);
+  onMount(() => {
+    if (!chartEl) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width > 0) setWidth(entry.contentRect.width);
+    });
+    observer.observe(chartEl);
+    onCleanup(() => observer.disconnect());
+  });
+
   const height = 84;
-  const padX = 10;
+  const padX = 14;
   const padTop = 10;
   const padBottom = 8;
-  const plotW = width - padX * 2;
+  const plotW = () => width() - padX * 2;
   const plotH = height - padTop - padBottom;
 
   const coords = createMemo(() => {
     const weeks = points();
     const maxKm = Math.max(...weeks.map((p) => p.km), 1);
     return weeks.map((p, i) => ({
-      x: padX + (i / Math.max(weeks.length - 1, 1)) * plotW,
+      x: padX + (i / Math.max(weeks.length - 1, 1)) * plotW(),
       y: padTop + plotH - (p.km / (maxKm * 1.12)) * plotH,
       ...p,
     }));
@@ -74,13 +86,14 @@ function StravaCard() {
 
       {/* 7-week line/area graph */}
       <div
+        ref={chartEl}
         class="relative flex flex-1 flex-col justify-end"
         onMouseLeave={() => setActiveIdx(null)}
         role="img"
         aria-label="Kilometers run over the last 7 weeks"
       >
         <svg
-          viewBox={`0 0 ${width} ${height}`}
+          viewBox={`0 0 ${width()} ${height}`}
           class="h-[84px] w-full overflow-visible"
         >
           <defs>
@@ -94,7 +107,7 @@ function StravaCard() {
           <line
             x1={padX}
             y1={padTop}
-            x2={width - padX}
+            x2={width() - padX}
             y2={padTop}
             stroke="currentColor"
             stroke-opacity="0.08"
@@ -103,7 +116,7 @@ function StravaCard() {
           <line
             x1={padX}
             y1={padTop + plotH / 2}
-            x2={width - padX}
+            x2={width() - padX}
             y2={padTop + plotH / 2}
             stroke="currentColor"
             stroke-opacity="0.08"
@@ -112,7 +125,7 @@ function StravaCard() {
           <line
             x1={padX}
             y1={padTop + plotH}
-            x2={width - padX}
+            x2={width() - padX}
             y2={padTop + plotH}
             stroke="currentColor"
             stroke-opacity="0.12"
@@ -139,9 +152,9 @@ function StravaCard() {
                 >
                   {/* Invisible wider hit target */}
                   <rect
-                    x={c.x - plotW / (points().length * 2)}
+                    x={c.x - plotW() / (points().length * 2)}
                     y={0}
-                    width={plotW / points().length}
+                    width={plotW() / points().length}
                     height={height}
                     fill="transparent"
                   />
@@ -171,15 +184,16 @@ function StravaCard() {
           </For>
         </svg>
 
-        <div class="mt-1.5 flex items-center justify-between px-1 text-[11px] text-[var(--fg-muted)]">
-          <For each={points()}>
-            {(p, i) => (
+        <div class="relative mt-1.5 h-4 text-[11px] leading-4 text-[var(--fg-muted)]">
+          <For each={coords()}>
+            {(c, i) => (
               <span
-                class={`transition-colors duration-150 ${
+                class={`absolute top-0 -translate-x-1/2 whitespace-nowrap transition-colors duration-150 ${
                   activeIdx() === i() ? "text-[var(--fg)]" : ""
                 }`}
+                style={{ left: `${c.x}px` }}
               >
-                {p.label}
+                {c.label}
               </span>
             )}
           </For>
