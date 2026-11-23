@@ -237,11 +237,6 @@ function GitHubCard() {
         <div class="flex items-center gap-2 text-[var(--fg-muted)]">
           <GitHubIcon class="h-3.5 w-3.5 shrink-0" />
           <span class="text-xs font-medium">GitHub</span>
-          <Show when={stats()?.stars !== undefined}>
-            <span class="border-l border-[var(--border)] pl-2 text-xs tabular-nums" title="Stars earned across public repositories">
-              {stats()?.stars?.toLocaleString()} stars
-            </span>
-          </Show>
         </div>
 
         <div class="text-right text-sm font-medium text-[var(--fg)] tabular-nums">

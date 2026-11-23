@@ -4,7 +4,6 @@ export interface DailyCommitPoint {
 }
 
 export interface GitHubStats {
-  stars?: number;
   asOf: string;
   dailyCommits: DailyCommitPoint[];
   latestCommit: {

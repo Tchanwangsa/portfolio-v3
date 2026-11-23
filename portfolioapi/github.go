@@ -32,7 +32,6 @@ type publicCommit struct {
 }
 
 type githubSnapshot struct {
-	Stars        *int                `json:"stars,omitempty"`
 	AsOf         string              `json:"asOf"`
 	DailyCommits [7]dailyCommitCount `json:"dailyCommits"`
 	LatestCommit *publicCommit       `json:"latestCommit"`
@@ -79,16 +78,6 @@ func (g *githubStats) get(ctx context.Context) *githubSnapshot {
 		log.Printf("refresh GitHub stats: %v", err)
 		g.nextRefresh = now.Add(time.Minute)
 		return g.snapshot
-	}
-
-	stars, err := g.fetchStars(ctx)
-	if err == nil {
-		snapshot.Stars = &stars
-	} else {
-		log.Printf("refresh GitHub stars: %v", err)
-		if g.snapshot != nil {
-			snapshot.Stars = g.snapshot.Stars
-		}
 	}
 
 	g.snapshot = snapshot
@@ -171,6 +160,23 @@ func (g *githubStats) search(ctx context.Context, dateFilter string, page, pageS
 		"page":     {strconv.Itoa(page)},
 		"per_page": {strconv.Itoa(pageSize)},
 	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/search/commits?"+query.Encode(), nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Authorization", "Bearer "+g.token)
+	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
+
+	res, err := g.client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return 0, nil, fmt.Errorf("GitHub commit search returned HTTP %d", res.StatusCode)
+	}
+
 	var result struct {
 		TotalCount int  `json:"total_count"`
 		Incomplete bool `json:"incomplete_results"`
@@ -188,8 +194,8 @@ func (g *githubStats) search(ctx context.Context, dateFilter string, page, pageS
 			} `json:"commit"`
 		} `json:"items"`
 	}
-	if err := g.request(ctx, "/search/commits?"+query.Encode(), &result); err != nil {
-		return 0, nil, fmt.Errorf("commit search: %w", err)
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return 0, nil, errors.New("invalid GitHub commit search response")
 	}
 	expected := min(pageSize, max(0, result.TotalCount-(page-1)*pageSize))
 	if result.TotalCount < 0 || result.Incomplete || len(result.Items) != expected {
@@ -215,52 +221,4 @@ func (g *githubStats) search(ctx context.Context, dateFilter string, page, pageS
 		})
 	}
 	return result.TotalCount, commits, nil
-}
-
-func (g *githubStats) fetchStars(ctx context.Context) (int, error) {
-	const pageSize = 100
-	total := 0
-	seen := make(map[int64]bool)
-	for page := 1; ; page++ {
-		query := url.Values{
-			"type": {"owner"}, "per_page": {strconv.Itoa(pageSize)}, "page": {strconv.Itoa(page)},
-		}
-		var repos []struct {
-			ID      int64 `json:"id"`
-			Private bool  `json:"private"`
-			Stars   int   `json:"stargazers_count"`
-		}
-		if err := g.request(ctx, "/users/"+g.username+"/repos?"+query.Encode(), &repos); err != nil {
-			return 0, err
-		}
-		for _, repo := range repos {
-			if !repo.Private && !seen[repo.ID] {
-				total += repo.Stars
-				seen[repo.ID] = true
-			}
-		}
-		if len(repos) < pageSize {
-			return total, nil
-		}
-	}
-}
-
-func (g *githubStats) request(ctx context.Context, path string, dest any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com"+path, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Authorization", "Bearer "+g.token)
-	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
-
-	res, err := g.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("GitHub API returned HTTP %d", res.StatusCode)
-	}
-	return json.NewDecoder(res.Body).Decode(dest)
 }

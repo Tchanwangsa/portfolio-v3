@@ -44,8 +44,7 @@ at build time to use a different endpoint. Add the portfolio's exact origin to
 `STATS_ALLOWED_ORIGINS` when hosting the API separately.
 
 The endpoint exposes seven days of public default-branch commits grouped by UTC
-author date, the latest public commit GitHub Search finds, and the total stars
-earned across public repositories owned by the configured account. The
+author date and the latest public commit GitHub Search finds. The
 server caches a successful response for 30 minutes and reuses it if GitHub
 temporarily fails. When credentials are absent or the first fetch fails the
 card shows an unavailable status.
