@@ -29,17 +29,25 @@ export interface AgenticCodingStats {
   sessions: number;
 }
 
-export const RUNNING_WEEK = {
-  days: [
-    { date: "2026-11-18", distanceMeters: 0 },
-    { date: "2026-11-19", distanceMeters: 0 },
-    { date: "2026-11-20", distanceMeters: 0 },
-    { date: "2026-11-21", distanceMeters: 0 },
-    { date: "2026-11-22", distanceMeters: 10180.6 },
-    { date: "2026-11-23", distanceMeters: 0 },
-    { date: "2026-11-24", distanceMeters: 0 },
+// Melbourne calendar weeks from the Strava export, through 24 November 2026.
+export const STRAVA_STATS = {
+  weeklyKm: [
+    { label: "W-6", km: 16.9135 },
+    { label: "W-5", km: 10.5584 },
+    { label: "W-4", km: 6.2405 },
+    { label: "W-3", km: 6.1703 },
+    { label: "W-2", km: 0 },
+    { label: "W-1", km: 20.7928 },
+    { label: "Now", km: 0 },
   ],
-  elapsedSeconds: 3339,
+  latestRun: {
+    name: "2XU 10km",
+    distanceKm: 10.18,
+    duration: "55m 39s",
+    pace: "5:28 /km",
+    when: "Nov 22",
+    url: "https://www.strava.com/activities/21076529003",
+  },
 };
 
 const agenticStatsEndpoint = import.meta.env.VITE_AGENTIC_STATS_API_URL ||
