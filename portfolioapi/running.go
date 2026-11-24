@@ -22,6 +22,10 @@ const runsPath = "/api/runs"
 const weekCount = 7
 
 var stravaActivityLink = regexp.MustCompile(`^https?://(?:www\.)?strava\.com/activities/([1-9][0-9]{0,19})/?$`)
+
+// IFTTT's CreatedAt ingredient looks like "November 24, 2026 at 10:36AM" in the
+// IFTTT account's time zone, which is assumed to be Melbourne.
+var iftttDateLayouts = []string{"January 2, 2006 at 3:04PM", "Jan 2, 2006 at 3:04PM"}
 var melbourne = loadMelbourne()
 
 func loadMelbourne() *time.Location {
@@ -155,19 +159,37 @@ func (api *runningAPI) receive(w http.ResponseWriter, r *http.Request) {
 	switch strings.ToLower(strings.TrimSpace(payload.ActivityType)) {
 	case "run", "trail run", "trailrun", "virtual run", "virtualrun":
 	default:
+		log.Printf("running webhook ignored activity type %q", payload.ActivityType)
 		http.Error(w, "Expected a run activity", http.StatusUnprocessableEntity)
 		return
 	}
-	match := stravaActivityLink.FindStringSubmatch(strings.TrimSpace(payload.LinkToActivity))
-	at, dateErr := time.Parse(time.RFC3339, strings.TrimSpace(payload.CreatedAt))
-	distance, distanceErr := strconv.ParseFloat(strings.TrimSpace(payload.DistanceMeters), 64)
-	elapsed, elapsedErr := strconv.Atoi(strings.TrimSpace(payload.ElapsedTimeInSeconds))
-	name := strings.TrimSpace(payload.Name)
 	now := time.Now()
-	if len(match) != 2 || dateErr != nil || at.IsZero() || at.After(now.Add(5*time.Minute)) ||
-		distanceErr != nil || math.IsNaN(distance) || distance < 0 || distance > 10_000_000 ||
-		elapsedErr != nil || elapsed < 0 || elapsed > 7*24*60*60 || name == "" || len(name) > 1024 {
-		http.Error(w, "Invalid run fields", http.StatusUnprocessableEntity)
+	activityID, linkErr := stravaActivityID(payload.LinkToActivity)
+	at, dateErr := parseRunTime(payload.CreatedAt)
+	distance, distanceErr := strconv.ParseFloat(strings.ReplaceAll(strings.TrimSpace(payload.DistanceMeters), ",", ""), 64)
+	elapsedFloat, elapsedErr := strconv.ParseFloat(strings.ReplaceAll(strings.TrimSpace(payload.ElapsedTimeInSeconds), ",", ""), 64)
+	elapsed := int(math.Round(elapsedFloat))
+	name := strings.TrimSpace(payload.Name)
+	var invalid []string
+	if linkErr != nil {
+		invalid = append(invalid, "linkToActivity")
+	}
+	if dateErr != nil || at.After(now.Add(5*time.Minute)) {
+		invalid = append(invalid, "createdAt")
+	}
+	if distanceErr != nil || math.IsNaN(distance) || distance < 0 || distance > 10_000_000 {
+		invalid = append(invalid, "distanceMeters")
+	}
+	if elapsedErr != nil || math.IsNaN(elapsedFloat) || elapsed < 0 || elapsed > 7*24*60*60 {
+		invalid = append(invalid, "elapsedTimeInSeconds")
+	}
+	if name == "" || len(name) > 1024 {
+		invalid = append(invalid, "name")
+	}
+	if len(invalid) > 0 {
+		log.Printf("running webhook rejected %v: createdAt=%q distanceMeters=%q elapsedTimeInSeconds=%q linkToActivity=%q linkErr=%v",
+			invalid, payload.CreatedAt, payload.DistanceMeters, payload.ElapsedTimeInSeconds, payload.LinkToActivity, linkErr)
+		http.Error(w, "Invalid run fields: "+strings.Join(invalid, ", "), http.StatusUnprocessableEntity)
 		return
 	}
 	first := firstRunningWeek(now)
@@ -175,7 +197,7 @@ func (api *runningAPI) receive(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	run := runEvent{ID: match[1], Name: name, At: at.UTC(), DistanceMeters: distance, ElapsedSeconds: elapsed}
+	run := runEvent{ID: activityID, Name: name, At: at.UTC(), DistanceMeters: distance, ElapsedSeconds: elapsed}
 	err := api.data.update(r.Context(), func(current []byte) ([]byte, error) {
 		var runs []runEvent
 		if current != nil {
@@ -199,6 +221,29 @@ func (api *runningAPI) receive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func parseRunTime(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if at, err := time.Parse(time.RFC3339, value); err == nil {
+		return at, nil
+	}
+	var err error
+	for _, layout := range iftttDateLayouts {
+		var at time.Time
+		if at, err = time.ParseInLocation(layout, value, melbourne); err == nil {
+			return at, nil
+		}
+	}
+	return time.Time{}, err
+}
+
+func stravaActivityID(link string) (string, error) {
+	match := stravaActivityLink.FindStringSubmatch(strings.TrimSpace(link))
+	if len(match) != 2 {
+		return "", fmt.Errorf("not a Strava activity link: %q", link)
+	}
+	return match[1], nil
 }
 
 func runStatsError(w http.ResponseWriter, err error) {

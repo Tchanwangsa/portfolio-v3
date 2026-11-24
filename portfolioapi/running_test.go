@@ -92,3 +92,20 @@ func TestRunningWebhookUpdatesPublicStatsOnce(t *testing.T) {
 		t.Fatalf("expected one public run, got %+v", snapshot)
 	}
 }
+
+func TestParseRunTimeAcceptsIFTTTFormat(t *testing.T) {
+	want := time.Date(2026, time.November, 24, 10, 36, 0, 0, melbourne)
+	for _, value := range []string{"November 24, 2026 at 10:36AM", "2026-11-23T23:36:00Z"} {
+		got, err := parseRunTime(value)
+		if err != nil || !got.Equal(want) {
+			t.Errorf("parseRunTime(%q) = %v, %v; want %v", value, got, err, want)
+		}
+	}
+	if got, err := parseRunTime("November 4, 2026 at 7:05PM"); err != nil ||
+		!got.Equal(time.Date(2026, time.November, 4, 19, 5, 0, 0, melbourne)) {
+		t.Errorf("single-digit day and hour parsed as %v, %v", got, err)
+	}
+	if _, err := parseRunTime("yesterday"); err == nil {
+		t.Error("expected an error for an unknown date format")
+	}
+}
