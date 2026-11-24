@@ -85,8 +85,7 @@ export const STRAVA_STATS: StravaStats = {
   },
 };
 
-const API_URL = import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV ? "http://127.0.0.1:8787" : "https://api.tchanwangsa.xyz");
+const API_URL = import.meta.env.VITE_API_URL || "https://api.tchanwangsa.xyz";
 
 // The collector publishes every few minutes, so a snapshot this old means it is switched off.
 const AGENTIC_STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
