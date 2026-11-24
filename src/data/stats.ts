@@ -85,24 +85,15 @@ export const STRAVA_STATS: StravaStats = {
   },
 };
 
-const stravaStatsEndpoint = import.meta.env.VITE_STRAVA_STATS_API_URL ||
-  (import.meta.env.DEV
-    ? "http://127.0.0.1:8787/api/runs"
-    : "https://api.tchanwangsa.xyz/api/runs");
+const API_URL = import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? "http://127.0.0.1:8787" : "https://api.tchanwangsa.xyz");
 
-const agenticStatsEndpoint = import.meta.env.VITE_AGENTIC_STATS_API_URL ||
-  (import.meta.env.DEV
-    ? "http://127.0.0.1:8787/api/agentic-stats"
-    : "https://api.tchanwangsa.xyz/api/agentic-stats");
+// The collector publishes every few minutes, so a snapshot this old means it is switched off.
+const AGENTIC_STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
 
-const githubStatsEndpoint = import.meta.env.VITE_GITHUB_STATS_API_URL ||
-  (import.meta.env.DEV
-    ? "http://127.0.0.1:8787/api/github-stats"
-    : "https://api.tchanwangsa.xyz/api/github-stats");
-
-async function fetchStats<T>(url: string, timeout = 4000): Promise<T | null> {
+async function fetchStats<T>(path: string, timeout = 4000): Promise<T | null> {
   try {
-    const response = await fetch(url, { cache: "no-cache", signal: AbortSignal.timeout(timeout) });
+    const response = await fetch(API_URL + path, { cache: "no-cache", signal: AbortSignal.timeout(timeout) });
     return response.ok ? await response.json() : null;
   } catch {
     return null;
@@ -182,19 +173,18 @@ export function summarizeCommits(response: GitHubStatsResponse, now = new Date()
 }
 
 export async function loadStravaStats(): Promise<StravaStats> {
-  const response = await fetchStats<StravaStatsResponse>(stravaStatsEndpoint);
+  const response = await fetchStats<StravaStatsResponse>("/api/runs");
   return response ? summarizeRuns(response) : STRAVA_STATS;
 }
 
 export async function loadAgenticCodingStats(): Promise<AgenticCodingStats | null> {
-  const stats = await fetchStats<AgenticCodingStats>(agenticStatsEndpoint);
-  if (stats || !import.meta.env.DEV) return stats;
-
-  return fetchStats<AgenticCodingStats>(`${import.meta.env.BASE_URL}agentic-stats.json`);
+  const stats = await fetchStats<AgenticCodingStats>("/api/agentic-stats");
+  const fresh = stats && Date.now() - Date.parse(stats.asOf) < AGENTIC_STALE_AFTER_MS;
+  return fresh ? stats : null;
 }
 
 export async function loadGitHubStats(): Promise<GitHubStats | null> {
-  const response = await fetchStats<GitHubStatsResponse>(githubStatsEndpoint, 8000);
+  const response = await fetchStats<GitHubStatsResponse>("/api/github-stats", 8000);
   return response && summarizeCommits(response);
 }
 

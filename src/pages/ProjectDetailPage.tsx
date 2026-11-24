@@ -1,6 +1,7 @@
 import { createEffect, For, Show } from "solid-js";
-import { A, useParams } from "@solidjs/router";
-import { ArrowLeftIcon, ArrowUpRightIcon } from "../components/Icons";
+import { useParams } from "@solidjs/router";
+import { BackLink, NotFound } from "../components/DetailPage";
+import { ArrowUpRightIcon } from "../components/Icons";
 import { getProjectBySlug } from "../data/projects";
 import { formatFullDate } from "../lib/date";
 
@@ -19,32 +20,17 @@ export function ProjectDetailPage() {
     <Show
       when={project()}
       fallback={
-        <section class="py-4">
-          <A
-            href="/projects"
-            class="group inline-flex items-center gap-1.5 font-sans text-sm text-[var(--fg-muted)] transition-colors duration-150 hover:text-[var(--fg)]"
-          >
-            <ArrowLeftIcon class="h-3.5 w-3.5 transition-transform duration-150 group-hover:-translate-x-0.5" />
-            <span>Projects</span>
-          </A>
-          <h1 class="mt-6 font-serif text-2xl font-bold tracking-[-0.02em] text-[var(--fg)]">
-            Project not found
-          </h1>
-          <p class="mt-2 font-sans text-[15px] text-[var(--fg-muted)]">
-            The project you're looking for doesn't exist or has been moved.
-          </p>
-        </section>
+        <NotFound
+          href="/projects"
+          label="Projects"
+          title="Project not found"
+          message="The project you're looking for doesn't exist or has been moved."
+        />
       }
     >
       {(current) => (
         <article>
-          <A
-            href="/projects"
-            class="group inline-flex items-center gap-1.5 font-sans text-sm text-[var(--fg-muted)] transition-colors duration-150 hover:text-[var(--fg)]"
-          >
-            <ArrowLeftIcon class="h-3.5 w-3.5 transition-transform duration-150 group-hover:-translate-x-0.5" />
-            <span>Projects</span>
-          </A>
+          <BackLink href="/projects" label="Projects" />
 
           <header class="mt-6 border-b border-[var(--border)] pb-6">
             <h1 class="font-serif text-2xl font-bold tracking-[-0.02em] text-[var(--fg)] sm:text-[28px]">

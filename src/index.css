@@ -4,7 +4,6 @@
   --font-serif: "Source Serif Pro", "Source Serif 4", Georgia, Cambria, "Times New Roman", serif;
   --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --color-ink: rgb(23, 23, 23);
 }
 
 :root {
@@ -20,7 +19,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root {
     --bg: rgb(23, 23, 23);
     --fg: rgb(242, 242, 242);
     --fg-body: rgba(242, 242, 242, 0.76);
@@ -31,22 +30,6 @@
 
     color-scheme: dark;
   }
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  --bg: rgb(23, 23, 23);
-  --fg: rgb(242, 242, 242);
-  --fg-body: rgba(242, 242, 242, 0.76);
-  --fg-muted: rgb(155, 155, 155);
-  --surface: rgb(32, 32, 32);
-  --surface-hover: rgba(242, 242, 242, 0.08);
-  --border: rgba(242, 242, 242, 0.09);
-
-  color-scheme: dark;
 }
 
 @layer base {
