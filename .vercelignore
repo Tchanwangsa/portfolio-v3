@@ -2,9 +2,6 @@ node_modules
 /dist
 .DS_Store
 *.local
-/.env.local
-/public/agentic-stats.json
-/public/.agentic-stats-*.tmp
-/server/.env.dev
-/server/.env.deploy
 /data
+/server/.env.*
+/telemetry/.env

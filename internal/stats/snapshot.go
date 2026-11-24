@@ -1,15 +1,16 @@
+// Package stats defines the agentic coding snapshot that the collector
+// publishes and the API serves.
 package stats
 
 import (
-	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
 	"time"
 )
 
+// Path is the API route for reading and publishing the snapshot.
 const Path = "/api/agentic-stats"
 
+// maxCount is the largest integer a JavaScript client reads exactly.
 const maxCount = 1<<53 - 1
 
 type DayUsage struct {
@@ -54,29 +55,4 @@ func (s Snapshot) Validate() error {
 		}
 	}
 	return nil
-}
-
-// Write replaces the previous snapshot atomically, including when the feed is a symlink.
-func (s Snapshot) Write(output string) error {
-	if target, err := filepath.EvalSymlinks(output); err == nil {
-		output = target
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	file, err := os.CreateTemp(filepath.Dir(output), ".agentic-stats-*.tmp")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(file.Name())
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	encodeErr := encoder.Encode(s)
-	closeErr := file.Close()
-	if encodeErr != nil {
-		return encodeErr
-	}
-	if closeErr != nil {
-		return closeErr
-	}
-	return os.Rename(file.Name(), output)
 }

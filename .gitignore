@@ -3,11 +3,8 @@ dist
 .DS_Store
 *.local
 
-/public/agentic-stats.json
-/public/.agentic-stats-*.tmp
-
-/server/.env.dev
-/server/.env.deploy
-/data/
 /.vercel/
-/.env.local
+/data/
+/server/.env.*
+!/server/.env.*.example
+/telemetry/.env

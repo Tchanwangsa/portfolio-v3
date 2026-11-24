@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Load reads the app's KEY=value file. Process environment variables take precedence.
+// Load reads a KEY=value file; process environment variables take precedence.
 func Load(path string) (func(string) string, error) {
 	values := make(map[string]string)
 	if path != "" {
