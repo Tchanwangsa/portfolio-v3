@@ -18,7 +18,7 @@ npm run typecheck
 
 The stats cards call `https://api.tchanwangsa.xyz`, in development too. To use a local API, run `VITE_API_URL=http://127.0.0.1:8787 npm run dev`.
 
-If the API is unreachable, the Strava card shows saved sample data, the GitHub card shows as unavailable, and the agentic coding card stays hidden.
+Each card shows a skeleton while it loads. If the API is unreachable, the Strava and GitHub cards show as unavailable and the agentic coding card stays hidden.
 
 ## Deploy
 
