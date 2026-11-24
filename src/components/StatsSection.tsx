@@ -276,7 +276,7 @@ function GitHubCard() {
                 class="flex flex-1 flex-col justify-end"
                 onMouseLeave={() => setActiveIdx(null)}
                 role="group"
-                aria-label={`Public GitHub commits for the seven days through ${snapshot.asOf} UTC`}
+                aria-label="GitHub commits over the last seven days"
               >
                 <div class="flex h-[84px] items-end gap-2 border-b border-[var(--border)] px-0.5 pb-1.5">
                   <For each={days}>

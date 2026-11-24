@@ -1,15 +1,27 @@
+import { formatShortDate } from "../lib/date";
+
 export interface DailyCommitPoint {
   day: string;
   commits: number;
 }
 
 export interface GitHubStats {
-  asOf: string;
   dailyCommits: DailyCommitPoint[];
   latestCommit: {
     repo: string;
     message: string;
-    date: string;
+    date: string; // local YYYY-MM-DD
+    url: string;
+  } | null;
+}
+
+interface GitHubStatsResponse {
+  asOf: string;
+  commitTimes: number[]; // Unix seconds
+  latestCommit: {
+    repo: string;
+    message: string;
+    at: string;
     url: string;
   } | null;
 }
@@ -36,6 +48,18 @@ export interface StravaStats {
     duration: string;
     pace: string;
     when: string;
+    url: string;
+  } | null;
+}
+
+interface StravaStatsResponse {
+  runs: { at: string; km: number }[];
+  latestRun: {
+    name: string;
+    distanceKm: number;
+    duration: string;
+    pace: string;
+    at: string;
     url: string;
   } | null;
 }
@@ -85,8 +109,81 @@ async function fetchStats<T>(url: string, timeout = 4000): Promise<T | null> {
   }
 }
 
+const WEEK_COUNT = 7;
+const DAY_COUNT = 7;
+
+function startOfLocalDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addLocalDays(date: Date, days: number): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function localIsoDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Totals runs into the viewer's local Monday-to-Sunday weeks. */
+export function summarizeRuns(response: StravaStatsResponse, now = new Date()): StravaStats {
+  const today = startOfLocalDay(now);
+  const thisWeek = addLocalDays(today, -((today.getDay() + 6) % 7));
+  const starts = Array.from({ length: WEEK_COUNT + 1 }, (_, i) => addLocalDays(thisWeek, 7 * (i - WEEK_COUNT + 1)));
+  const weeklyKm = starts.slice(0, WEEK_COUNT).map((_, i) => ({
+    label: i === WEEK_COUNT - 1 ? "Now" : `W-${WEEK_COUNT - 1 - i}`,
+    km: 0,
+  }));
+  for (const run of response.runs) {
+    const at = new Date(run.at);
+    const week = starts.findIndex((start, i) => i < WEEK_COUNT && at >= start && at < starts[i + 1]);
+    if (week !== -1 && at <= now) weeklyKm[week].km += run.km;
+  }
+  const latest = response.latestRun;
+  return {
+    weeklyKm,
+    latestRun: latest && {
+      name: latest.name,
+      distanceKm: latest.distanceKm,
+      duration: latest.duration,
+      pace: latest.pace,
+      when: formatShortDate(localIsoDate(new Date(latest.at))),
+      url: latest.url,
+    },
+  };
+}
+
+/** Counts commits into the viewer's last seven local days, ending today. */
+export function summarizeCommits(response: GitHubStatsResponse, now = new Date()): GitHubStats {
+  const today = startOfLocalDay(now);
+  const days = Array.from({ length: DAY_COUNT }, (_, i) => addLocalDays(today, i - DAY_COUNT + 1));
+  const dailyCommits = days.map((day) => ({
+    day: day.toLocaleDateString("en-US", { weekday: "short" }),
+    commits: 0,
+  }));
+  const end = addLocalDays(today, 1);
+  for (const seconds of response.commitTimes) {
+    const at = new Date(seconds * 1000);
+    if (at < days[0] || at >= end) continue;
+    let i = DAY_COUNT - 1;
+    while (at < days[i]) i--;
+    dailyCommits[i].commits++;
+  }
+  const latest = response.latestCommit;
+  return {
+    dailyCommits,
+    latestCommit: latest && {
+      repo: latest.repo,
+      message: latest.message,
+      date: localIsoDate(new Date(latest.at)),
+      url: latest.url,
+    },
+  };
+}
+
 export async function loadStravaStats(): Promise<StravaStats> {
-  return (await fetchStats<StravaStats>(stravaStatsEndpoint)) ?? STRAVA_STATS;
+  const response = await fetchStats<StravaStatsResponse>(stravaStatsEndpoint);
+  return response ? summarizeRuns(response) : STRAVA_STATS;
 }
 
 export async function loadAgenticCodingStats(): Promise<AgenticCodingStats | null> {
@@ -96,8 +193,9 @@ export async function loadAgenticCodingStats(): Promise<AgenticCodingStats | nul
   return fetchStats<AgenticCodingStats>(`${import.meta.env.BASE_URL}agentic-stats.json`);
 }
 
-export function loadGitHubStats(): Promise<GitHubStats | null> {
-  return fetchStats<GitHubStats>(githubStatsEndpoint, 8000);
+export async function loadGitHubStats(): Promise<GitHubStats | null> {
+  const response = await fetchStats<GitHubStatsResponse>(githubStatsEndpoint, 8000);
+  return response && summarizeCommits(response);
 }
 
 export function formatModelName(model: string): string {

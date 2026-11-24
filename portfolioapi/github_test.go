@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -72,13 +73,14 @@ func TestGitHubPrivateCommitCountsKeepLatestPublic(t *testing.T) {
 			if err := json.Unmarshal(response.Body.Bytes(), &snap); err != nil {
 				t.Fatal(err)
 			}
-			wantPrevious := 0
+			wantTimes := []int64{now.Unix() - now.Unix()%commitTimeStep}
 			wantPublicCalls := 2
 			if publicThisWeek {
-				wantPrevious, wantPublicCalls = 1, 1
+				publicTime := publicDate.Unix() - publicDate.Unix()%commitTimeStep
+				wantTimes, wantPublicCalls = []int64{publicTime, wantTimes[0]}, 1
 			}
-			if snap.DailyCommits[6].Commits != 1 || snap.DailyCommits[5].Commits != wantPrevious {
-				t.Fatalf("unexpected daily totals: %+v", snap.DailyCommits)
+			if !slices.Equal(snap.CommitTimes, wantTimes) {
+				t.Fatalf("commit times %v, want %v", snap.CommitTimes, wantTimes)
 			}
 			if snap.LatestCommit == nil || snap.LatestCommit.Message != "Latest public commit" {
 				t.Fatalf("unexpected latest commit: %+v", snap.LatestCommit)

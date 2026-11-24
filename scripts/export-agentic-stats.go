@@ -18,8 +18,6 @@ import (
 	"portfolio-v3/internal/stats"
 )
 
-const timeZone = "Australia/Melbourne"
-
 type graph struct {
 	Contributions []struct {
 		Date    string
@@ -50,17 +48,13 @@ func refresh(tokscale, output, envFile string) error {
 	if err != nil {
 		return err
 	}
-	location, err := time.LoadLocation(timeZone)
-	if err != nil {
-		return err
-	}
-	today := time.Now().In(location)
+	// Days follow this machine's local time zone, so they move with you when you travel.
+	today := time.Now()
 	start := today.AddDate(0, 0, -6)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, tokscale, "graph", "--offline", "--no-spinner",
 		"--since", start.Format(time.DateOnly), "--until", today.Format(time.DateOnly))
-	cmd.Env = append(os.Environ(), "TZ="+timeZone)
 	data, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("run Tokscale: %w", err)

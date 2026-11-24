@@ -47,8 +47,9 @@ Set `GITHUB_PRIVATE_TOKEN` as a server secret to include commits from private
 repositories. Use a fine-grained token and grant it access to the repositories
 you want counted. Commit Search requires no additional token permissions.
 
-The endpoint exposes seven days of default-branch commit totals grouped by UTC
-author date. It includes only the latest public commit's details. The server caches a successful response for 30 minutes and reuses it if GitHub
+The endpoint exposes the author times of default-branch commits from the last
+seven days, rounded down to 15 minutes, and the browser groups them into the
+viewer's local days. It includes only the latest public commit's details. The server caches a successful response for 30 minutes and reuses it if GitHub
 temporarily fails. When credentials are absent or the first fetch fails the
 card shows an unavailable status.
 
@@ -56,7 +57,25 @@ card shows an unavailable status.
 
 Set a dedicated `RUNS_WEBHOOK_TOKEN` in production to enable the running API.
 IFTTT sends authenticated POST requests to `/api/runs` with the run name, activity
-type, timestamp, distance in metres, elapsed seconds, and Strava activity URL.
-The public GET response supplies the weekly totals and latest run shown on the
-portfolio. Weeks start Monday in Melbourne. The API discards deliveries outside
-the seven-week window and deduplicates retries by activity ID.
+type, timestamp, distance in metres, elapsed seconds, Strava activity URL, and
+optionally the route map:
+
+```json
+{
+  "name": "{{Name}}",
+  "activityType": "{{ActivityType}}",
+  "createdAt": "{{CreatedAt}}",
+  "distanceMeters": "{{DistanceMeters}}",
+  "elapsedTimeInSeconds": "{{ElapsedTimeInSeconds}}",
+  "linkToActivity": "{{LinkToActivity}}",
+  "routeMapImageUrl": "{{RouteMapImageUrl}}"
+}
+```
+
+`createdAt` is wall-clock time where the run happened. The API finds that time
+zone from the route map's start point. Runs without a map, such as treadmill
+runs, use the zone of the latest run that had one, or Melbourne before any has.
+
+The public GET response lists the last eight weeks of runs and the latest run,
+and the browser totals them into the viewer's local Monday-to-Sunday weeks. The
+API discards older deliveries and deduplicates retries by activity ID.

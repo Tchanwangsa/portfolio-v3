@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,22 +20,25 @@ const githubStatsPath = "/api/github-stats"
 
 var githubUsername = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}$`)
 
-type dailyCommitCount struct {
-	Day     string `json:"day"`
-	Commits int    `json:"commits"`
-}
+// Browsers group commits into their own local days, and every local day of the
+// last week started within the past seven days.
+const commitWindow = 7 * 24 * time.Hour
+
+// Commit times are rounded down to 15 minutes, which keeps every time zone's day
+// boundaries exact without publishing when private work happened to the second.
+const commitTimeStep = 15 * 60
 
 type publicCommit struct {
-	Repo    string `json:"repo"`
-	Message string `json:"message"`
-	Date    string `json:"date"`
-	URL     string `json:"url"`
+	Repo    string    `json:"repo"`
+	Message string    `json:"message"`
+	At      time.Time `json:"at"`
+	URL     string    `json:"url"`
 }
 
 type githubSnapshot struct {
-	AsOf         string              `json:"asOf"`
-	DailyCommits [7]dailyCommitCount `json:"dailyCommits"`
-	LatestCommit *publicCommit       `json:"latestCommit"`
+	AsOf         time.Time     `json:"asOf"`
+	CommitTimes  []int64       `json:"commitTimes"`
+	LatestCommit *publicCommit `json:"latestCommit"`
 }
 
 type githubStats struct {
@@ -67,7 +71,7 @@ func (g *githubStats) get(ctx context.Context) *githubSnapshot {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Second)
 	if now.Before(g.nextRefresh) {
 		return g.snapshot
 	}
@@ -80,95 +84,117 @@ func (g *githubStats) get(ctx context.Context) *githubSnapshot {
 		g.nextRefresh = now.Add(time.Minute)
 		return g.snapshot
 	}
-
 	if g.privateToken != "" {
-		counts, err := g.privateCounts(ctx, now)
+		private, _, err := g.commitTimes(ctx, g.privateToken, "private", now.Add(-commitWindow), now)
 		if err != nil {
-			log.Printf("refresh private GitHub commit counts: %v", err)
+			log.Printf("refresh private GitHub commit times: %v", err)
 			g.nextRefresh = now.Add(time.Minute)
 			if g.snapshot == nil {
+				slices.Sort(snapshot.CommitTimes)
 				g.snapshot = snapshot
 			}
 			return g.snapshot
 		}
-		for i, count := range counts {
-			snapshot.DailyCommits[i].Commits += count
-		}
+		snapshot.CommitTimes = append(snapshot.CommitTimes, private...)
 	}
-
+	slices.Sort(snapshot.CommitTimes)
 	g.snapshot = snapshot
 	g.nextRefresh = now.Add(30 * time.Minute)
 	return snapshot
 }
 
 func authorDateRange(first, last time.Time) string {
-	return " author-date:" + first.Format(time.DateOnly) + "T00:00:00Z.." + last.Format(time.DateOnly) + "T23:59:59Z"
+	const layout = "2006-01-02T15:04:05Z"
+	return " author-date:" + first.UTC().Format(layout) + ".." + last.UTC().Format(layout)
 }
 
 func (g *githubStats) fetch(ctx context.Context, now time.Time) (*githubSnapshot, error) {
-	snapshot := &githubSnapshot{AsOf: now.Format(time.DateOnly)}
-	first := now.AddDate(0, 0, 1-len(snapshot.DailyCommits))
-	dayIndex := make(map[string]int, len(snapshot.DailyCommits))
-	for i := range snapshot.DailyCommits {
-		day := first.AddDate(0, 0, i)
-		dayIndex[day.Format(time.DateOnly)] = i
-		snapshot.DailyCommits[i].Day = day.Format("Mon")
-	}
-
-	const pageSize = 100
-	filter := authorDateRange(first, now)
-	total, commits, err := g.search(ctx, filter, 1, pageSize)
+	from := now.Add(-commitWindow)
+	snapshot := &githubSnapshot{AsOf: now}
+	times, latest, err := g.commitTimes(ctx, g.token, "public", from, now)
 	if err != nil {
 		return nil, err
 	}
-	if total == 0 {
-		_, latest, err := g.search(ctx, "", 1, 1)
+	if latest == nil {
+		_, items, err := searchCommits(ctx, g, g.token, "public", "", 1, 1)
 		if err != nil {
 			return nil, err
 		}
-		if len(latest) != 0 {
-			snapshot.LatestCommit = &latest[0]
-		}
-		return snapshot, nil
-	}
-	snapshot.LatestCommit = &commits[0]
-
-	// GitHub Search only makes the first 1,000 results available for pagination.
-	if total > 1000 {
-		for i := range snapshot.DailyCommits {
-			day := first.AddDate(0, 0, i)
-			count, _, err := g.search(ctx, authorDateRange(day, day), 1, 1)
-			if err != nil {
+		if len(items) != 0 {
+			if latest, err = items[0].public(); err != nil {
 				return nil, err
 			}
-			snapshot.DailyCommits[i].Commits = count
 		}
-		return snapshot, nil
+	}
+	snapshot.LatestCommit = latest
+	snapshot.CommitTimes = times
+	return snapshot, nil
+}
+
+// commitTimes lists the author times of commits between from and to, inclusive,
+// along with the newest one when searching public commits. GitHub Search only
+// pages through the first 1,000 results, so busier windows are split in half.
+func (g *githubStats) commitTimes(ctx context.Context, token, visibility string, from, to time.Time) ([]int64, *publicCommit, error) {
+	const pageSize = 100
+	filter := authorDateRange(from, to)
+	total, items, err := searchCommits(ctx, g, token, visibility, filter, 1, pageSize)
+	if err != nil {
+		return nil, nil, err
+	}
+	if total > 1000 {
+		if to.Sub(from) < time.Hour {
+			return nil, nil, errors.New("too many commits to count")
+		}
+		mid := from.Add(to.Sub(from) / 2).Truncate(time.Second)
+		later, latest, err := g.commitTimes(ctx, token, visibility, mid.Add(time.Second), to)
+		if err != nil {
+			return nil, nil, err
+		}
+		earlier, earlierLatest, err := g.commitTimes(ctx, token, visibility, from, mid)
+		if err != nil {
+			return nil, nil, err
+		}
+		if latest == nil {
+			latest = earlierLatest
+		}
+		return append(earlier, later...), latest, nil
 	}
 
+	times := make([]int64, 0, total)
+	var latest *publicCommit
 	for page := 1; ; page++ {
-		for _, commit := range commits {
-			i, ok := dayIndex[commit.Date]
-			if !ok {
-				return nil, errors.New("GitHub commit search returned a date outside the window")
+		for _, item := range items {
+			at := item.Commit.Author.Date
+			if at.Before(from) || at.After(to) {
+				return nil, nil, errors.New("GitHub commit search returned a date outside the window")
 			}
-			snapshot.DailyCommits[i].Commits++
+			if visibility == "public" {
+				commit, err := item.public()
+				if err != nil {
+					return nil, nil, err
+				}
+				if latest == nil {
+					latest = commit
+				}
+			}
+			unix := at.Unix()
+			times = append(times, unix-((unix%commitTimeStep)+commitTimeStep)%commitTimeStep)
 		}
 		if page*pageSize >= total {
-			return snapshot, nil
+			return times, latest, nil
 		}
 		var pageTotal int
-		pageTotal, commits, err = g.search(ctx, filter, page+1, pageSize)
+		pageTotal, items, err = searchCommits(ctx, g, token, visibility, filter, page+1, pageSize)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if pageTotal != total {
-			return nil, errors.New("GitHub commit search changed during pagination")
+			return nil, nil, errors.New("GitHub commit search changed during pagination")
 		}
 	}
 }
 
-type publicSearchItem struct {
+type commitSearchItem struct {
 	URL        string `json:"html_url"`
 	Repository struct {
 		Name    string `json:"full_name"`
@@ -182,89 +208,27 @@ type publicSearchItem struct {
 	} `json:"commit"`
 }
 
-func (g *githubStats) search(ctx context.Context, dateFilter string, page, pageSize int) (int, []publicCommit, error) {
-	total, items, err := searchCommits[publicSearchItem](ctx, g, g.token, "public", dateFilter, page, pageSize)
-	if err != nil {
-		return 0, nil, err
+// public checks that a search result really is a public commit before any of
+// its details reach the public API.
+func (item commitSearchItem) public() (*publicCommit, error) {
+	if item.Repository.Private == nil || *item.Repository.Private {
+		return nil, errors.New("GitHub commit search returned a non-public repository")
 	}
-
-	commits := make([]publicCommit, 0, len(items))
-	for _, item := range items {
-		if item.Repository.Private == nil || *item.Repository.Private {
-			return 0, nil, errors.New("GitHub commit search returned a non-public repository")
-		}
-		commitURL, err := url.Parse(item.URL)
-		if err != nil || commitURL.Scheme != "https" || commitURL.Host != "github.com" ||
-			!strings.HasPrefix(commitURL.Path, "/"+item.Repository.Name+"/commit/") || item.Commit.Author.Date.IsZero() {
-			return 0, nil, errors.New("GitHub commit search returned invalid commit metadata")
-		}
-		message, _, _ := strings.Cut(item.Commit.Message, "\n")
-		commits = append(commits, publicCommit{
-			Repo:    item.Repository.Name,
-			Message: strings.TrimSpace(message),
-			Date:    item.Commit.Author.Date.UTC().Format(time.DateOnly),
-			URL:     item.URL,
-		})
+	commitURL, err := url.Parse(item.URL)
+	if err != nil || commitURL.Scheme != "https" || commitURL.Host != "github.com" ||
+		!strings.HasPrefix(commitURL.Path, "/"+item.Repository.Name+"/commit/") || item.Commit.Author.Date.IsZero() {
+		return nil, errors.New("GitHub commit search returned invalid commit metadata")
 	}
-	return total, commits, nil
+	message, _, _ := strings.Cut(item.Commit.Message, "\n")
+	return &publicCommit{
+		Repo:    item.Repository.Name,
+		Message: strings.TrimSpace(message),
+		At:      item.Commit.Author.Date.UTC(),
+		URL:     item.URL,
+	}, nil
 }
 
-type privateSearchItem struct {
-	Commit struct {
-		Author struct {
-			Date time.Time `json:"date"`
-		} `json:"author"`
-	} `json:"commit"`
-}
-
-func (g *githubStats) privateCounts(ctx context.Context, now time.Time) ([7]int, error) {
-	var counts [7]int
-	first := now.AddDate(0, 0, 1-len(counts))
-	days := make(map[string]int, len(counts))
-	for i := range counts {
-		days[first.AddDate(0, 0, i).Format(time.DateOnly)] = i
-	}
-
-	const pageSize = 100
-	window := authorDateRange(first, now)
-	total, items, err := searchCommits[privateSearchItem](ctx, g, g.privateToken, "private", window, 1, pageSize)
-	if err != nil {
-		return counts, err
-	}
-	if total > 1000 {
-		for i := range counts {
-			day := first.AddDate(0, 0, i)
-			counts[i], _, err = searchCommits[privateSearchItem](ctx, g, g.privateToken, "private", authorDateRange(day, day), 1, 1)
-			if err != nil {
-				return counts, err
-			}
-		}
-		return counts, nil
-	}
-
-	for page := 1; ; page++ {
-		for _, item := range items {
-			day, ok := days[item.Commit.Author.Date.UTC().Format(time.DateOnly)]
-			if !ok {
-				return counts, errors.New("private commit search returned a date outside the window")
-			}
-			counts[day]++
-		}
-		if page*pageSize >= total {
-			return counts, nil
-		}
-		var pageTotal int
-		pageTotal, items, err = searchCommits[privateSearchItem](ctx, g, g.privateToken, "private", window, page+1, pageSize)
-		if err != nil {
-			return counts, err
-		}
-		if pageTotal != total {
-			return counts, errors.New("private commit search changed during pagination")
-		}
-	}
-}
-
-func searchCommits[T any](ctx context.Context, g *githubStats, token, visibility, dateFilter string, page, pageSize int) (int, []T, error) {
+func searchCommits(ctx context.Context, g *githubStats, token, visibility, dateFilter string, page, pageSize int) (int, []commitSearchItem, error) {
 	query := url.Values{
 		"q":        {"author:" + g.username + " is:" + visibility + dateFilter},
 		"sort":     {"author-date"},
@@ -290,9 +254,9 @@ func searchCommits[T any](ctx context.Context, g *githubStats, token, visibility
 	}
 
 	var result struct {
-		TotalCount int  `json:"total_count"`
-		Incomplete bool `json:"incomplete_results"`
-		Items      []T  `json:"items"`
+		TotalCount int                `json:"total_count"`
+		Incomplete bool               `json:"incomplete_results"`
+		Items      []commitSearchItem `json:"items"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 		return 0, nil, errors.New("invalid GitHub commit search response")
