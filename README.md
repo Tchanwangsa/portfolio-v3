@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.svg">
+  <img src=".github/assets/banner-light.svg" alt="Tanat Chanwangsa" width="720">
+</picture>
+
 # portfolio-v3
 
 [![SolidJS](https://img.shields.io/badge/solidjs-2C4F7C?style=for-the-badge&logo=solid&logoColor=white)](https://www.solidjs.com/)
