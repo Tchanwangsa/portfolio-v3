@@ -11,14 +11,14 @@
   <a href="https://github.com/Tchanwangsa/portfolio-api"><strong>Stats API</strong></a>
 </p>
 
+<p>
+  <a href="https://www.solidjs.com/"><img alt="SolidJS" src="https://img.shields.io/badge/solidjs-2C4F7C?style=for-the-badge&logo=solid&logoColor=white"></a>&nbsp;
+  <a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/typescript-3178C6?style=for-the-badge&logo=typescript&logoColor=white"></a>&nbsp;
+  <a href="https://tailwindcss.com/"><img alt="Tailwind CSS" src="https://img.shields.io/badge/tailwind_css-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white"></a>&nbsp;
+  <a href="https://vite.dev/"><img alt="Vite" src="https://img.shields.io/badge/vite-646CFF?style=for-the-badge&logo=vite&logoColor=white"></a>
+</p>
+
 </div>
-
-# portfolio-v3
-
-[![SolidJS](https://img.shields.io/badge/solidjs-2C4F7C?style=for-the-badge&logo=solid&logoColor=white)](https://www.solidjs.com/)
-[![TypeScript](https://img.shields.io/badge/typescript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/tailwind_css-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Vite](https://img.shields.io/badge/vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vite.dev/)
 
 ## About
 
