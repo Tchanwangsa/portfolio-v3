@@ -68,6 +68,52 @@ function parseParagraphs(markdown: string): InlineNode[][] {
     .map(parseInline);
 }
 
+function Inline(props: { nodes: InlineNode[] }) {
+  return (
+    <For each={props.nodes}>
+      {(node) => {
+        switch (node.type) {
+          case "link": {
+            const external = isExternalHref(node.href);
+            return (
+              <a
+                href={node.href}
+                target={external ? "_blank" : undefined}
+                rel={external ? "noopener noreferrer" : undefined}
+                class="text-[var(--fg)] underline decoration-[var(--fg-muted)]/50 underline-offset-[3px] transition-colors duration-150 hover:decoration-[var(--fg)] focus-visible:decoration-[var(--fg)] focus-visible:outline-none"
+              >
+                {node.label}
+              </a>
+            );
+          }
+          case "strong":
+            return (
+              <strong class="font-medium text-[var(--fg)]">
+                {node.value}
+              </strong>
+            );
+          case "em":
+            return <em>{node.value}</em>;
+          case "code":
+            return (
+              <code class="rounded bg-[var(--bg)] px-1.5 py-0.5 font-mono text-[0.9em] text-[var(--fg)]">
+                {node.value}
+              </code>
+            );
+          case "text":
+            return node.value;
+        }
+      }}
+    </For>
+  );
+}
+
+/** Renders one line of inline markdown: links, bold, italics and code. */
+export function InlineMarkdown(props: { content: string }) {
+  const nodes = createMemo(() => parseInline(props.content));
+  return <Inline nodes={nodes()} />;
+}
+
 interface MarkdownProps {
   content: string;
   class?: string;
@@ -81,41 +127,7 @@ export function Markdown(props: MarkdownProps) {
       <For each={paragraphs()}>
         {(nodes) => (
           <p class="text-pretty">
-            <For each={nodes}>
-              {(node) => {
-                switch (node.type) {
-                  case "link": {
-                    const external = isExternalHref(node.href);
-                    return (
-                      <a
-                        href={node.href}
-                        target={external ? "_blank" : undefined}
-                        rel={external ? "noopener noreferrer" : undefined}
-                        class="text-[var(--fg)] underline decoration-[var(--fg-muted)]/50 underline-offset-[3px] transition-colors duration-150 hover:decoration-[var(--fg)] focus-visible:decoration-[var(--fg)] focus-visible:outline-none"
-                      >
-                        {node.label}
-                      </a>
-                    );
-                  }
-                  case "strong":
-                    return (
-                      <strong class="font-medium text-[var(--fg)]">
-                        {node.value}
-                      </strong>
-                    );
-                  case "em":
-                    return <em>{node.value}</em>;
-                  case "code":
-                    return (
-                      <code class="rounded bg-[var(--bg)] px-1.5 py-0.5 font-mono text-[0.9em] text-[var(--fg)]">
-                        {node.value}
-                      </code>
-                    );
-                  case "text":
-                    return node.value;
-                }
-              }}
-            </For>
+            <Inline nodes={nodes} />
           </p>
         )}
       </For>
