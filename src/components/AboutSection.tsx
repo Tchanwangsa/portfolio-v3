@@ -30,13 +30,13 @@ export function AboutSection() {
         <div class="min-w-0">
           <h1
             id="about-heading"
-            class="font-sans text-[22px] leading-tight font-semibold tracking-[-0.02em] text-[var(--fg)] sm:text-[30px]"
+            class="font-sans text-[24px] leading-tight font-semibold tracking-[-0.02em] text-[var(--fg)] sm:text-[32px]"
           >
             Hey, I'm Tanat
           </h1>
 
           <div
-            class="-ml-[9px] mt-2 flex items-center gap-1.5"
+            class="-ml-[8px] mt-2 flex items-center gap-1"
             aria-label="Contact links"
           >
             <For each={CONTACTS}>
@@ -47,11 +47,11 @@ export function AboutSection() {
                     href={contact.href}
                     target={external ? "_blank" : undefined}
                     rel={external ? "noopener noreferrer" : undefined}
-                    class="inline-flex h-[42px] w-[42px] items-center justify-center rounded-md text-[var(--fg-muted)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--fg)] focus-visible:bg-[var(--surface-hover)] focus-visible:text-[var(--fg)] focus-visible:outline-none"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--fg-muted)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--fg)] focus-visible:bg-[var(--surface-hover)] focus-visible:text-[var(--fg)] focus-visible:outline-none"
                     aria-label={contact.label}
                     title={contact.label}
                   >
-                    <contact.icon class="block h-6 w-6" />
+                    <contact.icon class="block h-5 w-5 sm:h-6 sm:w-6" />
                   </a>
                 );
               }}
