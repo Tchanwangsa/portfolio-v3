@@ -14,7 +14,7 @@ export function AboutSection() {
     <section
       id="about"
       aria-labelledby="about-heading"
-      class="rounded-2xl bg-[var(--surface)] p-6 sm:p-8"
+      class="px-1 sm:px-2"
     >
       <div class="mb-6 flex items-center gap-4 sm:gap-[30px]">
         <figure class="h-[100px] w-[100px] shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg)] sm:h-[132px] sm:w-[132px]">
