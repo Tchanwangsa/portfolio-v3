@@ -1,3 +1,5 @@
+<div align="center">
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.svg">
   <img src=".github/assets/banner-light.svg" alt="Tanat Chanwangsa" width="720">
@@ -8,6 +10,8 @@
   &nbsp;·&nbsp;
   <a href="https://github.com/Tchanwangsa/portfolio-api"><strong>Stats API</strong></a>
 </p>
+
+</div>
 
 # portfolio-v3
 
