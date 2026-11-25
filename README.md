@@ -3,6 +3,12 @@
   <img src=".github/assets/banner-light.svg" alt="Tanat Chanwangsa" width="720">
 </picture>
 
+<p>
+  <a href="https://tchanwangsa.xyz"><strong>Visit the site</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/Tchanwangsa/portfolio-api"><strong>Stats API</strong></a>
+</p>
+
 # portfolio-v3
 
 [![SolidJS](https://img.shields.io/badge/solidjs-2C4F7C?style=for-the-badge&logo=solid&logoColor=white)](https://www.solidjs.com/)
