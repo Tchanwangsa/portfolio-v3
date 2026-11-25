@@ -1,9 +1,11 @@
 import { For } from "solid-js";
 
 const CONTRIBUTIONS = [
-  "Lorem ipsum dolor sit amet consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-  "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-  "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+  "Founded Project Oculus, a macOS app that brings a student's Canvas, Ed and Echo360 coursework to the coding agent they already use.",
+  "Replaced KaTeX and MathLive in Oculus with a Rust maths engine compiled to WebAssembly, including a visual equation editor.",
+  "Led and designed Connect3, a campus app for event discovery, AI search, club memberships and ticketing across four universities.",
+  "Built scrapers that keep Connect3's club directory, membership products and prices up to date.",
+  "Redesigned the DSCubed website's homepage and moved it to Next.js 16, React 19 and Tailwind 4.",
 ];
 
 export function TechnicalContributions() {
@@ -17,7 +19,7 @@ export function TechnicalContributions() {
         id="contributions-heading"
         class="mb-5 font-serif text-2xl font-bold tracking-[-0.02em] text-[var(--fg)]"
       >
-        Technical Contributions
+        What I've built
       </h2>
 
       <ul class="space-y-4 font-sans text-[15px] leading-[1.75] text-[var(--fg-body)] sm:text-[15.5px]">
