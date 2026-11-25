@@ -34,6 +34,9 @@
 
 @layer base {
   html {
+    /* Reserve the scrollbar's width on every page so the centered column
+       doesn't shift between short pages and ones that scroll. */
+    scrollbar-gutter: stable;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
