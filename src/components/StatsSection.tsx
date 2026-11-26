@@ -618,6 +618,20 @@ export function StatsSection() {
         <GitHubCard />
         <AgenticCodingCard />
       </div>
+
+      <div class="mt-4 flex items-center justify-between gap-3 px-1 text-xs text-[var(--fg-muted)] sm:px-2">
+        <span>Check out how I get my stats</span>
+        <a
+          href="https://github.com/Tchanwangsa/portfolio-api"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="group -mx-1.5 inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors duration-150 hover:text-[var(--fg)] focus-visible:text-[var(--fg)] focus-visible:outline-none"
+        >
+          <GitHubIcon class="h-3.5 w-3.5" />
+          <span>Read the source</span>
+          <ArrowUpRightIcon class="h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </a>
+      </div>
     </section>
   );
 }
